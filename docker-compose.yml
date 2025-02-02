@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db # Name of the database service
+      - DB_USER=your_db_user
+      - DB_PASSWORD=your_db_password
+      - DB_NAME=github_data
+      - GITHUB_TOKEN=your_github_token
+      - REDIS_HOST=redis # Name of the Redis service
+      - REDIS_PORT=6379
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules # Prevent local node_modules from being overwritten
+
+  db:
+    image: mysql:8.0 # Or your preferred MySQL version
+    environment:
+      - MYSQL_ROOT_PASSWORD=your_root_password
+      - MYSQL_DATABASE=github_data
+      - MYSQL_USER=your_db_user
+      - MYSQL_PASSWORD=your_db_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  mysql_data:
