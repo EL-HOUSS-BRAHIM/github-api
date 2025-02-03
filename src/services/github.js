@@ -1,24 +1,49 @@
 const axios = require('axios');
 const config = require('../config');
+const { APIError } = require('../utils/errors');
 
 const githubApi = axios.create({
   baseURL: 'https://api.github.com',
   headers: {
     Authorization: `token ${config.githubToken}`,
+    Accept: 'application/vnd.github.v3+json', // Specify API version
   },
 });
+
+// Intercept responses to handle common errors (e.g., rate limiting)
+githubApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 404) {
+        return Promise.reject(new APIError(404, 'Resource not found on GitHub'));
+      } else if (status === 403) {
+        // Check for rate limit headers (if available)
+        const rateLimitRemaining = error.response.headers['x-ratelimit-remaining'];
+        const rateLimitReset = error.response.headers['x-ratelimit-reset'];
+
+        if (rateLimitRemaining === '0') {
+          const resetTime = rateLimitReset ? new Date(rateLimitReset * 1000) : null;
+          return Promise.reject(new APIError(403, `GitHub API rate limit exceeded. Resets at ${resetTime}`));
+        } else {
+          return Promise.reject(new APIError(403, 'GitHub API request forbidden'));
+        }
+      } else if (status >= 500) {
+        return Promise.reject(new APIError(status, 'GitHub API server error'));
+      }
+    }
+    return Promise.reject(error); // Re-throw other errors
+  }
+);
 
 async function getUserProfile(username) {
   try {
     const response = await githubApi.get(`/users/${username}`);
     return response.data;
   } catch (error) {
-    // Handle errors (404, rate limits, etc.)
-    console.error(`Error fetching user ${username}:`, error.response.status);
-    if (error.response.status === 404) {
-      throw new Error('User not found');
-    }
-    throw error; // Re-throw for other errors
+    console.error(`Error fetching user ${username}:`, error.message);
+    throw error; // Re-throw the handled error
   }
 }
 
@@ -28,8 +53,8 @@ async function getUserRepos(username, page = 1, perPage = 100) {
       params: {
         page,
         per_page: perPage,
-        sort: 'updated' // You might want to sort
-      }
+        sort: 'updated', // You might want to sort by 'updated' or 'pushed'
+      },
     });
     return response.data;
   } catch (error) {
@@ -38,12 +63,15 @@ async function getUserRepos(username, page = 1, perPage = 100) {
   }
 }
 
-async function getUserActivity(username) {
+async function getUserActivity(username, page = 1, perPage = 100) {
   try {
-    // Fetch events, you might need to paginate through multiple pages
-    const response = await githubApi.get(`/users/${username}/events`);
+    const response = await githubApi.get(`/users/${username}/events`, {
+      params: {
+        page,
+        per_page: perPage,
+      },
+    });
     return response.data;
-    // Process and aggregate activity data (daily/monthly counts)
   } catch (error) {
     console.error(`Error fetching activity for ${username}:`, error.message);
     throw error;
