@@ -1,8 +1,9 @@
 const express = require('express');
 const { json, urlencoded } = require('express');
 const swaggerUi = require('swagger-ui-express');
-const swaggerDocument = require('./swagger.json');
+const swaggerDocument = require('./swagger.json'); // Your Swagger/OpenAPI definition
 const userRoutes = require('./routes/user');
+const { APIError } = require('./utils/errors');
 
 const app = express();
 
@@ -22,6 +23,15 @@ app.use((err, req, res, next) => {
 
   if (err instanceof APIError) {
     return res.status(err.statusCode).json({ error: err.message });
+  }
+
+  // Handle Sequelize validation errors
+  if (err.name === 'SequelizeValidationError') {
+    const errors = err.errors.map(e => ({
+      field: e.path,
+      message: e.message,
+    }));
+    return res.status(400).json({ error: 'Validation error', details: errors });
   }
 
   res.status(500).json({ error: 'Internal server error' });
