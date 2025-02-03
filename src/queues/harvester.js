@@ -2,6 +2,7 @@ const Queue = require('bull');
 const config = require('../config');
 const { User, Repository, Activity } = require('../models');
 const githubService = require('../services/github');
+const { APIError } = require('../utils/errors');
 
 const harvesterQueue = new Queue('githubHarvester', {
   redis: {
@@ -10,6 +11,7 @@ const harvesterQueue = new Queue('githubHarvester', {
   },
 });
 
+// Process jobs in the queue (fetching and storing data)
 harvesterQueue.process(async (job) => {
   const { username } = job.data;
 
@@ -17,12 +19,13 @@ harvesterQueue.process(async (job) => {
     // 1. Fetch Data from GitHub
     const userProfile = await githubService.getUserProfile(username);
     const userRepos = await githubService.getUserRepos(username);
-    const userActivity = await githubService.getUserActivity(username);
+
+    // Fetch and process activity data in batches
+    const userActivity = await processUserActivity(username);
 
     // 2. Process and Clean Data
-    const processedUserData = processUserProfile(userProfile); // Implement these helper functions
+    const processedUserData = processUserProfile(userProfile);
     const processedRepoData = processUserRepos(userRepos);
-    const processedActivityData = processUserActivity(userActivity);
 
     // 3. Insert/Update in Database
     const [user, created] = await User.findOrCreate({
@@ -46,32 +49,39 @@ harvesterQueue.process(async (job) => {
       }
     }
 
-    // Upsert Activity data (or create a separate table for aggregated counts)
-    for (const activity of processedActivityData) {
-      await Activity.create({
-        ...activity,
-        user_id: user.id
-      });
-    }
+    // Upsert Activity data
+    await Activity.destroy({ where: { user_id: user.id } });
+    await Activity.bulkCreate(userActivity.map(activity => ({ ...activity, user_id: user.id })));
 
     console.log(`Data harvested for ${username}`);
     return { success: true };
   } catch (error) {
     console.error(`Error harvesting data for ${username}:`, error);
-    throw error; // Important to re-throw so Bull can retry
+    if (error instanceof APIError) {
+      // Handle specific API errors (like rate limiting) if needed
+      // ...
+    }
+    throw error; // Re-throw so Bull can retry or move the job to failed
   }
 });
 
 // Helper functions to process data into the format you need for your database
+
 function processUserProfile(data) {
-  // ... extract and format fields, e.g.,
   return {
     username: data.login,
     full_name: data.name,
     avatar_url: data.avatar_url,
     bio: data.bio,
     location: data.location,
-    // ... other fields
+    company: data.company,
+    website: data.blog,
+    followers: data.followers,
+    following: data.following,
+    public_repos: data.public_repos,
+    social: {
+      twitter: data.twitter_username,
+    },
   };
 }
 
@@ -80,32 +90,79 @@ function processUserRepos(repos) {
     name: repo.name,
     description: repo.description,
     topics: repo.topics,
-    // ... other fields
-    last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null
+    stars: repo.stargazers_count,
+    forks: repo.forks_count,
+    issues: repo.open_issues_count,
+    last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
+    commit_count: 0, // You'll need to fetch commit count separately
+    pull_request_count: 0, // You'll need to fetch PR count separately
   }));
 }
 
-function processUserActivity(activity) {
+async function processUserActivity(username) {
+  const allActivity = [];
+  let page = 1;
+  const perPage = 100;
+  let keepFetching = true;
+
+  while (keepFetching) {
+    try {
+      const activityPage = await githubService.getUserActivity(username, page, perPage);
+
+      if (activityPage.length === 0) {
+        keepFetching = false;
+      } else {
+        allActivity.push(...activityPage);
+        page++;
+      }
+    } catch (error) {
+      console.error(`Error fetching activity page ${page} for ${username}:`, error);
+      keepFetching = false; // Stop fetching on error
+    }
+  }
+
+  const processedActivity = aggregateActivity(allActivity);
+  return processedActivity;
+}
+
+function aggregateActivity(activity) {
   const dailyCounts = {};
-  const monthlyCounts = {};
 
   activity.forEach(event => {
-      const date = new Date(event.created_at).toISOString().slice(0, 10); // YYYY-MM-DD
-      const month = date.slice(0, 7); // YYYY-MM
+    const date = new Date(event.created_at).toISOString().slice(0, 10);
 
-      dailyCounts[date] = (dailyCounts[date] || 0) + 1;
-      monthlyCounts[month] = (monthlyCounts[month] || 0) + 1;
+    if (!dailyCounts[date]) {
+      dailyCounts[date] = {
+        commits: 0,
+        pull_requests: 0,
+        issues_opened: 0,
+      };
+    }
+
+    switch (event.type) {
+      case 'PushEvent':
+        dailyCounts[date].commits += event.payload.size;
+        break;
+      case 'PullRequestEvent':
+        if (event.payload.action === 'opened') {
+          dailyCounts[date].pull_requests += 1;
+        }
+        break;
+      case 'IssuesEvent':
+        if (event.payload.action === 'opened') {
+          dailyCounts[date].issues_opened += 1;
+        }
+        break;
+      // Add more cases as needed
+    }
   });
 
-  const dailyActivity = Object.entries(dailyCounts).map(([date, count]) => ({
-      date: date,
-      commits: count,  // You might differentiate event types here
-      // ... other activity types
+  const dailyActivity = Object.entries(dailyCounts).map(([date, counts]) => ({
+    date,
+    ...counts,
   }));
 
-  // You could create monthly activity entries here as well
-
-  return dailyActivity; // Or return both daily and monthly
+  return dailyActivity;
 }
 
 module.exports = harvesterQueue;
