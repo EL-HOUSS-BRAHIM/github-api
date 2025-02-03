@@ -2,13 +2,18 @@ const { User, Repository, Activity } = require('../models');
 const harvesterQueue = require('../queues/harvester');
 const reportService = require('../services/report');
 const { validateUsername, validatePagination } = require('../utils/validation');
-const redisClient = require('../config/redis'); // Assuming you set up a Redis client
+const { APIError } = require('../utils/errors');
+const redisClient = require('../config/redis');
 
-async function getUserProfile(req, res) {
+/**
+ * @description Get user profile
+ * @route GET /api/user/:username
+ */
+async function getUserProfile(req, res, next) {
   const { username } = req.params;
 
   if (!validateUsername(username)) {
-    return res.status(400).json({ error: 'Invalid username format' });
+    return next(new APIError(400, 'Invalid username format'));
   }
 
   try {
@@ -23,7 +28,7 @@ async function getUserProfile(req, res) {
     if (!user) {
       // 3. Trigger Data Harvesting (if not found)
       harvesterQueue.add({ username });
-      return res.status(404).json({ error: 'User not found. Data is being fetched.' });
+      return next(new APIError(404, 'User not found. Data is being fetched.'));
     }
 
     // 4. Process and Format Data
@@ -31,6 +36,14 @@ async function getUserProfile(req, res) {
       username: user.username,
       full_name: user.full_name,
       avatar_url: user.avatar_url,
+      bio: user.bio,
+      location: user.location,
+      company: user.company,
+      website: user.website,
+      followers: user.followers,
+      following: user.following,
+      public_repos: user.public_repos,
+      social: user.social,
       // ... other fields
     };
 
@@ -39,20 +52,24 @@ async function getUserProfile(req, res) {
 
     return res.json(profile);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching user profile:', error);
+    return next(error); // Pass error to error handling middleware
   }
 }
 
-async function getUserRepos(req, res) {
+/**
+ * @description Get user repositories
+ * @route GET /api/user/:username/repos
+ */
+async function getUserRepos(req, res, next) {
   const { username } = req.params;
   const { page = 1, per_page = 10 } = req.query;
 
   if (!validateUsername(username)) {
-    return res.status(400).json({ error: 'Invalid username format' });
+    return next(new APIError(400, 'Invalid username format'));
   }
   if (!validatePagination(page, per_page)) {
-    return res.status(400).json({ error: 'Invalid pagination parameters' });
+    return next(new APIError(400, 'Invalid pagination parameters'));
   }
 
   try {
@@ -66,7 +83,7 @@ async function getUserRepos(req, res) {
     // Find user
     const user = await User.findOne({ where: { username } });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return next(new APIError(404, 'User not found'));
     }
 
     // Find repos with pagination
@@ -74,12 +91,20 @@ async function getUserRepos(req, res) {
       where: { user_id: user.id },
       offset: (page - 1) * per_page,
       limit: per_page,
+      order: [['stars', 'DESC']]
     });
 
     // Format repo data
     const formattedRepos = repos.map(repo => ({
       name: repo.name,
       description: repo.description,
+      stars: repo.stars,
+      forks: repo.forks,
+      issues: repo.issues,
+      last_commit: repo.last_commit,
+      commit_count: repo.commit_count,
+      pull_request_count: repo.pull_request_count,
+      topics: repo.topics,
       // ... other fields
     }));
 
@@ -93,16 +118,20 @@ async function getUserRepos(req, res) {
       repos: formattedRepos,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching user repositories:', error);
+    return next(error);
   }
 }
 
-async function getUserActivity(req, res) {
+/**
+ * @description Get user activity
+ * @route GET /api/user/:username/activity
+ */
+async function getUserActivity(req, res, next) {
   const { username } = req.params;
 
   if (!validateUsername(username)) {
-    return res.status(400).json({ error: 'Invalid username format' });
+    return next(new APIError(400, 'Invalid username format'));
   }
 
   try {
@@ -116,7 +145,7 @@ async function getUserActivity(req, res) {
     // Find user
     const user = await User.findOne({ where: { username } });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return next(new APIError(404, 'User not found'));
     }
 
     // Find activity
@@ -136,14 +165,26 @@ async function getUserActivity(req, res) {
       const month = date.slice(0, 7); // YYYY-MM
 
       if (!formattedActivity.daily[date]) {
-        formattedActivity.daily[date] = 0;
+        formattedActivity.daily[date] = {
+          commits: 0,
+          pull_requests: 0,
+          issues_opened: 0,
+        };
       }
-      formattedActivity.daily[date] += activity.commits; // Assuming you track commits, adjust as needed
+      formattedActivity.daily[date].commits += activity.commits;
+      formattedActivity.daily[date].pull_requests += activity.pull_requests;
+      formattedActivity.daily[date].issues_opened += activity.issues_opened;
 
       if (!formattedActivity.monthly[month]) {
-        formattedActivity.monthly[month] = 0;
+        formattedActivity.monthly[month] = {
+          commits: 0,
+          pull_requests: 0,
+          issues_opened: 0,
+        };
       }
-      formattedActivity.monthly[month] += activity.commits;
+      formattedActivity.monthly[month].commits += activity.commits;
+      formattedActivity.monthly[month].pull_requests += activity.pull_requests;
+      formattedActivity.monthly[month].issues_opened += activity.issues_opened;
     });
 
     // Cache the result
@@ -151,16 +192,20 @@ async function getUserActivity(req, res) {
 
     return res.json(formattedActivity);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching user activity:', error);
+    return next(error);
   }
 }
 
-async function getAggregatedReport(req, res) {
+/**
+ * @description Get aggregated user report
+ * @route GET /api/user/:username/report
+ */
+async function getAggregatedReport(req, res, next) {
   const { username } = req.params;
 
   if (!validateUsername(username)) {
-    return res.status(400).json({ error: 'Invalid username format' });
+    return next(new APIError(400, 'Invalid username format'));
   }
 
   try {
@@ -190,7 +235,7 @@ async function getAggregatedReport(req, res) {
     if (!user) {
       // Trigger data harvesting if not found
       harvesterQueue.add({ username });
-      return res.status(404).json({ error: 'User not found. Data is being fetched.' });
+      return next(new APIError(404, 'User not found. Data is being fetched.'));
     }
 
     // Generate report using the service
@@ -201,8 +246,8 @@ async function getAggregatedReport(req, res) {
 
     return res.json(report);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching aggregated report:', error);
+    return next(error);
   }
 }
 
