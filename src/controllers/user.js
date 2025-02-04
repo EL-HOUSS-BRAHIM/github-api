@@ -11,27 +11,49 @@ const redisClient = require('../config/redis');
  */
 async function getUserProfile(req, res, next) {
   const { username } = req.params;
+  console.log('Fetching profile for username:', username);
 
   if (!validateUsername(username)) {
     return next(new APIError(400, 'Invalid username format'));
   }
 
   try {
-    // 1. Check Cache (Redis)
+    // 1. Check Cache
+    console.log('Checking Redis cache...');
     const cachedProfile = await redisClient.get(`user:${username}:profile`);
     if (cachedProfile) {
+      console.log('Cache hit - returning cached profile');
       return res.json(JSON.parse(cachedProfile));
     }
+    console.log('Cache miss');
 
     // 2. Check Database
+    console.log('Checking database...');
     const user = await User.findOne({ where: { username } });
     if (!user) {
-      // 3. Trigger Data Harvesting (if not found)
-      harvesterQueue.add({ username });
-      return next(new APIError(404, 'User not found. Data is being fetched.'));
+      console.log('User not found in database, queueing harvest job');
+      // 3. Check if there's already a job in the queue
+      const existingJobs = await harvesterQueue.getJobs(['active', 'waiting']);
+      const isQueued = existingJobs.some(job => job.data.username === username);
+
+      if (!isQueued) {
+        console.log('Adding harvest job to queue');
+        await harvesterQueue.add({ username }, {
+          jobId: `harvest-${username}`,
+          removeOnComplete: true
+        });
+      }
+
+      return res.status(202).json({
+        status: 'pending',
+        message: 'User data is being fetched. Please try again in a few moments.',
+        retryAfter: 5,
+        username
+      });
     }
 
-    // 4. Process and Format Data
+    console.log('User found in database');
+    // Format profile response
     const profile = {
       username: user.username,
       full_name: user.full_name,
@@ -44,16 +66,15 @@ async function getUserProfile(req, res, next) {
       following: user.following,
       public_repos: user.public_repos,
       social: user.social,
-      // ... other fields
     };
 
-    // 5. Cache the result (with an expiry, e.g., 1 hour)
+    // Cache the result
     await redisClient.set(`user:${username}:profile`, JSON.stringify(profile), 'EX', 3600);
 
     return res.json(profile);
   } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return next(error); // Pass error to error handling middleware
+    console.error('Error in getUserProfile:', error);
+    return next(error);
   }
 }
 
