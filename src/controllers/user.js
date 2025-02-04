@@ -151,67 +151,40 @@ async function getUserRepos(req, res, next) {
 async function getUserActivity(req, res, next) {
   const { username } = req.params;
 
-  if (!validateUsername(username)) {
-    return next(new APIError(400, 'Invalid username format'));
-  }
-
   try {
-    // Check cache
-    const cacheKey = `user:${username}:activity`;
-    const cachedActivity = await redisClient.get(cacheKey);
-    if (cachedActivity) {
-      return res.json(JSON.parse(cachedActivity));
+    // Validate username
+    if (!validateUsername(username)) {
+      throw new APIError(400, 'Invalid username format');
     }
 
-    // Find user
-    const user = await User.findOne({ where: { username } });
+    // Find user and include activities
+    const user = await User.findOne({
+      where: { username },
+      include: [{
+        model: Activity,
+        attributes: ['date', 'commits', 'pull_requests', 'issues_opened'],
+        order: [['date', 'DESC']],
+        limit: 365
+      }]
+    });
+
     if (!user) {
-      return next(new APIError(404, 'User not found'));
+      throw new APIError(404, 'User not found');
     }
 
-    // Find activity
-    const activities = await Activity.findAll({
-      where: { user_id: user.id },
-      order: [['date', 'ASC']], // Order by date
+    // Process activities with proper date handling
+    const activities = user.Activities.map(activity => ({
+      date: activity.date instanceof Date ? activity.date.toISOString().split('T')[0] : activity.date,
+      commits: activity.commits || 0,
+      pull_requests: activity.pull_requests || 0,
+      issues_opened: activity.issues_opened || 0
+    }));
+
+    return res.json({
+      username: user.username,
+      activities: activities
     });
 
-    // Format activity data
-    const formattedActivity = {
-      daily: {},
-      monthly: {},
-    };
-
-    activities.forEach(activity => {
-      const date = activity.date.toISOString().slice(0, 10); // YYYY-MM-DD
-      const month = date.slice(0, 7); // YYYY-MM
-
-      if (!formattedActivity.daily[date]) {
-        formattedActivity.daily[date] = {
-          commits: 0,
-          pull_requests: 0,
-          issues_opened: 0,
-        };
-      }
-      formattedActivity.daily[date].commits += activity.commits;
-      formattedActivity.daily[date].pull_requests += activity.pull_requests;
-      formattedActivity.daily[date].issues_opened += activity.issues_opened;
-
-      if (!formattedActivity.monthly[month]) {
-        formattedActivity.monthly[month] = {
-          commits: 0,
-          pull_requests: 0,
-          issues_opened: 0,
-        };
-      }
-      formattedActivity.monthly[month].commits += activity.commits;
-      formattedActivity.monthly[month].pull_requests += activity.pull_requests;
-      formattedActivity.monthly[month].issues_opened += activity.issues_opened;
-    });
-
-    // Cache the result
-    await redisClient.set(cacheKey, JSON.stringify(formattedActivity), 'EX', 3600);
-
-    return res.json(formattedActivity);
   } catch (error) {
     console.error('Error fetching user activity:', error);
     return next(error);
@@ -222,52 +195,41 @@ async function getUserActivity(req, res, next) {
  * @description Get aggregated user report
  * @route GET /api/user/:username/report
  */
-async function getAggregatedReport(req, res, next) {
+async function getUserReport(req, res, next) {
   const { username } = req.params;
 
-  if (!validateUsername(username)) {
-    return next(new APIError(400, 'Invalid username format'));
-  }
-
   try {
-    // Check cache
-    const cacheKey = `user:${username}:report`;
-    const cachedReport = await redisClient.get(cacheKey);
-    if (cachedReport) {
-      return res.json(JSON.parse(cachedReport));
-    }
-
     const user = await User.findOne({
       where: { username },
       include: [
         {
-          model: Repository,
-          limit: 10, // Limit the number of repos for the report
-          order: [['stars', 'DESC']], // Order by stars (or another metric)
+          model: Activity,
+          attributes: ['date', 'commits', 'pull_requests', 'issues_opened'],
+          order: [['date', 'DESC']],
+          limit: 365
         },
         {
-          model: Activity,
-          limit: 365, // Limit to the last 365 days for the report
-          order: [['date', 'DESC']],
-        },
-      ],
+          model: Repository,
+          attributes: ['name', 'stars', 'forks', 'issues']
+        }
+      ]
     });
 
     if (!user) {
-      // Trigger data harvesting if not found
-      harvesterQueue.add({ username });
-      return next(new APIError(404, 'User not found. Data is being fetched.'));
+      throw new APIError(404, 'User not found');
     }
 
-    // Generate report using the service
-    const report = reportService.generateReport(user);
+    // Process activities with date handling
+    user.Activities = user.Activities.map(activity => ({
+      ...activity.toJSON(),
+      date: activity.date instanceof Date ? activity.date.toISOString().split('T')[0] : activity.date
+    }));
 
-    // Cache the result
-    await redisClient.set(cacheKey, JSON.stringify(report), 'EX', 3600);
-
+    const report = await reportService.generateReport(user);
     return res.json(report);
+
   } catch (error) {
-    console.error('Error fetching aggregated report:', error);
+    console.error('Error generating user report:', error);
     return next(error);
   }
 }
@@ -276,5 +238,5 @@ module.exports = {
   getUserProfile,
   getUserRepos,
   getUserActivity,
-  getAggregatedReport,
+  getUserReport
 };
