@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "concurrently \"nodemon src/server.js\" \"nodemon src/worker.js\"",
     "test": "jest",
-    "worker": "node src/worker.js"
+    "worker": "node src/worker.js",
+    "clear-cache": "node scripts/redis-cli.js"
   },
   "repository": {
     "type": "git",
