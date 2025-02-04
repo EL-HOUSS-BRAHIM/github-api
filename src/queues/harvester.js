@@ -8,7 +8,37 @@ const harvesterQueue = new Queue('githubHarvester', {
   redis: {
     host: config.redis.host,
     port: config.redis.port,
+    password: config.redis.password, // Add password if required
   },
+  defaultJobOptions: {
+    attempts: 3, // Retry failed jobs up to 3 times
+    backoff: {
+      type: 'exponential',
+      delay: 2000 // Initial delay of 2 seconds
+    }
+  }
+});
+
+// Add event listeners for better monitoring
+harvesterQueue.on('failed', (job, err) => {
+  console.error(`Job ${job.id} failed for username ${job.data.username}:`, err);
+});
+
+harvesterQueue.on('completed', (job) => {
+  console.log(`Job ${job.id} completed for username ${job.data.username}`);
+});
+
+// Add more detailed logging to harvesterQueue
+harvesterQueue.on('active', (job) => {
+  console.log(`Processing job ${job.id} for username ${job.data.username}`);
+});
+
+harvesterQueue.on('stalled', (job) => {
+  console.log(`Job ${job.id} has stalled`);
+});
+
+harvesterQueue.on('error', (error) => {
+  console.error('Queue error:', error);
 });
 
 // Process jobs in the queue (fetching and storing data)
@@ -16,6 +46,18 @@ harvesterQueue.process(async (job) => {
   const { username } = job.data;
 
   try {
+    job.progress(10);
+    console.log('Fetching GitHub profile...');
+    const userProfile = await githubService.getUserProfile(username);
+
+    job.progress(30);
+    console.log('Fetching GitHub repos...');
+    const userRepos = await githubService.getUserRepos(username);
+
+    job.progress(50);
+    console.log('Fetching GitHub activity...');
+    const userActivity = await processUserActivity(username);
+
     // 1. Fetch Data from GitHub
     const userProfile = await githubService.getUserProfile(username);
     const userRepos = await githubService.getUserRepos(username);
