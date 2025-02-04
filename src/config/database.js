@@ -3,9 +3,12 @@ const config = require('./index'); // Assuming you have database config in index
 
 const sequelize = new Sequelize(config.db.name, config.db.user, config.db.password, {
   host: config.db.host,
+  port: config.db.port,
   dialect: 'mysql',
   logging: false, // Set to true to see SQL queries (useful for debugging)
-
+  dialectOptions: {
+    ssl: config.db.ssl,
+  },
   // Pool configuration (important for serverless environments)
   pool: {
     max: 5,    // Maximum number of connections in pool
