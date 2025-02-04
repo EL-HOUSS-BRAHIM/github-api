@@ -12,6 +12,7 @@ yarn.lock
 migrations/
 models/
 seeders/
+config/
 
 # Build output
 dist/
