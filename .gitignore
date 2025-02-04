@@ -8,6 +8,10 @@ yarn.lock
 ./.env
 .env.*
 !.env.example
+.rc/
+migrations/
+models/
+seeders/
 
 # Build output
 dist/
