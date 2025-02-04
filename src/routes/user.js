@@ -11,7 +11,7 @@ router.get('/:username/repos', userController.getUserRepos);
 // Route to get a user's activity
 router.get('/:username/activity', userController.getUserActivity);
 
-// Route to get a user's aggregated report
-router.get('/:username/report', userController.getAggregatedReport);
+// Route to get a user's report
+router.get('/:username/report', userController.getUserReport); // Changed from getAggregatedReport
 
 module.exports = router;
