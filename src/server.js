@@ -3,15 +3,23 @@ const app = require('./app');
 const config = require('./config');
 const sequelize = require('./config/database');
 const redisClient = require('./config/redis');
+const harvesterQueue = require('./queues/harvester');
 
 const server = http.createServer(app);
 
 async function startServer() {
   try {
     // Clean up any stalled jobs
-    await harvesterQueue.clean(0, 'delayed');
-    await harvesterQueue.clean(0, 'wait');
-    await harvesterQueue.clean(0, 'active');
+    console.log('Cleaning up stalled jobs...');
+    try {
+      await harvesterQueue.clean(0, 'delayed');
+      await harvesterQueue.clean(0, 'wait');
+      await harvesterQueue.clean(0, 'active');
+      console.log('Queue cleanup completed');
+    } catch (queueError) {
+      console.warn('Queue cleanup warning:', queueError);
+      // Continue startup even if queue cleanup fails
+    }
     
     // Test database connection
     await sequelize.authenticate();
@@ -20,22 +28,24 @@ async function startServer() {
     // Sync models with the database
     await sequelize.sync({ force: false });
 
-    // No need to manually connect Redis here since ioredis handles connection automatically
-
     server.listen(config.port, () => {
       console.log(`Server listening on port ${config.port}`);
     });
   } catch (error) {
     console.error('Unable to start the server:', error);
-    process.exit(1); // Exit on critical errors
+    process.exit(1);
   }
 }
 
 startServer();
 
 // Handle process termination
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.info('SIGTERM signal received.');
-  redisClient.quit();
-  sequelize.close();
+  await Promise.all([
+    redisClient.quit(),
+    sequelize.close(),
+    harvesterQueue.close()
+  ]);
+  process.exit(0);
 });
