@@ -39,11 +39,17 @@ githubApi.interceptors.response.use(
 
 async function getUserProfile(username) {
   try {
+    console.log(`Making GitHub API request for user ${username}...`);
     const response = await githubApi.get(`/users/${username}`);
+    console.log('GitHub API response received');
     return response.data;
   } catch (error) {
-    console.error(`Error fetching user ${username}:`, error.message);
-    throw error; // Re-throw the handled error
+    console.error('GitHub API Error:', {
+      status: error.response?.status,
+      message: error.message,
+      rateLimit: error.response?.headers?.['x-ratelimit-remaining']
+    });
+    throw error;
   }
 }
 
