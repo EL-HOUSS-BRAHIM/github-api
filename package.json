@@ -5,8 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "test": "jest" 
+    "dev": "concurrently \"nodemon src/server.js\" \"nodemon src/worker.js\"",
+    "test": "jest",
+    "worker": "node src/worker.js"
   },
   "repository": {
     "type": "git",
@@ -30,16 +31,20 @@
   "dependencies": {
     "axios": "^1.6.7",
     "bull": "^4.12.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
+    "ioredis": "^5.4.2",
     "mysql2": "^3.9.1",
     "redis": "^4.6.13",
     "sequelize": "^6.37.1",
     "swagger-ui-express": "^5.0.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "jest": "^29.7.0",
     "nodemon": "^3.1.0",
+    "sequelize-cli": "^6.6.2",
     "supertest": "^6.3.4"
   }
 }
