@@ -1,13 +1,16 @@
-const { createClient } = require('redis');
+const Redis = require('ioredis');
 const config = require('./index');
 
-// Create a Redis client instance
-const redisClient = createClient({
-  socket: {
-    host: config.redis.host,
-    port: config.redis.port,
-  },
-  password: config.redis.password, // Add password if needed
+// Create a Redis client instance using the connection string
+const redisClient = new Redis({
+  host: config.redis.host,
+  port: config.redis.port,
+  password: config.redis.password,
+  username: 'default',
+  tls: {}, // Enable TLS/SSL
+  retryStrategy: (times) => {
+    return Math.min(times * 50, 2000);
+  }
 });
 
 // Handle connection errors gracefully
@@ -15,10 +18,9 @@ redisClient.on('error', (err) => {
   console.error('Redis Client Error:', err);
 });
 
-// Connect to Redis (optional: only connect when needed)
-(async () => {
-  await redisClient.connect();
+// Log successful connection
+redisClient.on('connect', () => {
   console.log('Redis client connected');
-})();
+});
 
 module.exports = redisClient;
