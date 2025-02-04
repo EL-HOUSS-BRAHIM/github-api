@@ -8,14 +8,17 @@ const harvesterQueue = new Queue('githubHarvester', {
   redis: {
     host: config.redis.host,
     port: config.redis.port,
-    password: config.redis.password, // Add password if required
+    password: config.redis.password,
+    tls: {} // Enable TLS for Aiven Redis
   },
   defaultJobOptions: {
-    attempts: 3, // Retry failed jobs up to 3 times
+    attempts: 3,
     backoff: {
       type: 'exponential',
-      delay: 2000 // Initial delay of 2 seconds
-    }
+      delay: 2000
+    },
+    removeOnComplete: true,
+    removeOnFail: false
   }
 });
 
@@ -41,71 +44,63 @@ harvesterQueue.on('error', (error) => {
   console.error('Queue error:', error);
 });
 
-// Process jobs in the queue (fetching and storing data)
-harvesterQueue.process(async (job) => {
+// Process jobs with concurrency limit
+harvesterQueue.process(5, async (job) => {
   const { username } = job.data;
 
   try {
+    // 1. Fetch Data
     job.progress(10);
-    console.log('Fetching GitHub profile...');
     const userProfile = await githubService.getUserProfile(username);
-
+    
     job.progress(30);
-    console.log('Fetching GitHub repos...');
     const userRepos = await githubService.getUserRepos(username);
-
+    
     job.progress(50);
-    console.log('Fetching GitHub activity...');
     const userActivity = await processUserActivity(username);
 
-    // 1. Fetch Data from GitHub
-    const userProfile = await githubService.getUserProfile(username);
-    const userRepos = await githubService.getUserRepos(username);
-
-    // Fetch and process activity data in batches
-    const userActivity = await processUserActivity(username);
-
-    // 2. Process and Clean Data
+    // 2. Process Data
+    job.progress(70);
     const processedUserData = processUserProfile(userProfile);
     const processedRepoData = processUserRepos(userRepos);
 
-    // 3. Insert/Update in Database
-    const [user, created] = await User.findOrCreate({
-      where: { username: processedUserData.username },
-      defaults: processedUserData,
-    });
+    // 3. Save to Database
+    job.progress(90);
+    await saveToDatabase(processedUserData, processedRepoData, userActivity);
 
-    if (!created) {
-      // Update existing user
-      await user.update(processedUserData);
-    }
-
-    // Upsert repositories (update or insert)
-    for (const repo of processedRepoData) {
-      const [repoInstance, repoCreated] = await Repository.findOrCreate({
-        where: { user_id: user.id, name: repo.name },
-        defaults: { ...repo, user_id: user.id },
-      });
-      if (!repoCreated) {
-        await repoInstance.update(repo);
-      }
-    }
-
-    // Upsert Activity data
-    await Activity.destroy({ where: { user_id: user.id } });
-    await Activity.bulkCreate(userActivity.map(activity => ({ ...activity, user_id: user.id })));
-
-    console.log(`Data harvested for ${username}`);
-    return { success: true };
+    job.progress(100);
+    return { success: true, username };
   } catch (error) {
-    console.error(`Error harvesting data for ${username}:`, error);
-    if (error instanceof APIError) {
-      // Handle specific API errors (like rate limiting) if needed
-      // ...
-    }
-    throw error; // Re-throw so Bull can retry or move the job to failed
+    console.error(`Job failed for ${username}:`, error);
+    throw error;
   }
 });
+
+// Extract database operations
+async function saveToDatabase(userData, repoData, activityData) {
+  const [user, created] = await User.findOrCreate({
+    where: { username: userData.username },
+    defaults: userData,
+  });
+
+  if (!created) {
+    await user.update(userData);
+  }
+
+  // Upsert repos
+  for (const repo of repoData) {
+    await Repository.upsert({
+      ...repo,
+      user_id: user.id
+    });
+  }
+
+  // Replace activity
+  await Activity.destroy({ where: { user_id: user.id } });
+  await Activity.bulkCreate(
+    activityData.map(activity => ({ ...activity, user_id: user.id }))
+  );
+}
 
 // Helper functions to process data into the format you need for your database
 
