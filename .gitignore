@@ -10,10 +10,7 @@ yarn.lock
 !.env.example
 .rc/
 migrations/
-models/
 seeders/
-config/
-
 # Build output
 dist/
 build/
