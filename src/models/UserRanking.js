@@ -20,6 +20,10 @@ const UserRanking = sequelize.define('UserRanking', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  score: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
   total_commits: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
@@ -28,15 +32,11 @@ const UserRanking = sequelize.define('UserRanking', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
-  score: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-  },
-  country_rank: {
+  global_rank: {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
-  global_rank: {
+  country_rank: {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
@@ -45,14 +45,6 @@ const UserRanking = sequelize.define('UserRanking', {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   }
-}, {
-  indexes: [
-    { fields: ['user_id'] },
-    { fields: ['country'] },
-    { fields: ['score'] },
-    { fields: ['country_rank'] },
-    { fields: ['global_rank'] }
-  ]
 });
 
 User.hasOne(UserRanking, { foreignKey: 'user_id' });
