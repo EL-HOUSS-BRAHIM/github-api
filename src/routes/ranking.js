@@ -8,4 +8,6 @@ router.get('/user/:username', rankingController.getUserRanking);
 // New route to harvest users by country
 router.post('/harvest/:country', rankingController.harvestUsersByCountry);
 
+router.get('/country/:country', rankingController.getCountryRankings);
+
 module.exports = router;
