@@ -47,7 +47,7 @@ A robust backend API service for collecting, processing, and serving GitHub user
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/github-api.git
+git clone https://github.com/EL-HOUSS-BRAHIM/github-api.git
 cd github-api
 ```
 
