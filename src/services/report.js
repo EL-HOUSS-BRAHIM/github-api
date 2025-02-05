@@ -1,4 +1,4 @@
-function generateReport(user) {
+async function generateReport(user) {
   const report = {
     profile: {
       username: user.username,
@@ -92,6 +92,23 @@ function generateReport(user) {
 
   // Calculate country ranking
   report.country_ranking = calculateCountryRanking(user);
+
+  // Add ranking information
+  const ranking = await UserRanking.findOne({
+    where: { user_id: user.id }
+  });
+
+  if (ranking) {
+    report.ranking = {
+      score: ranking.score,
+      country: ranking.country,
+      country_rank: ranking.country_rank,
+      global_rank: ranking.global_rank,
+      total_commits: ranking.total_commits,
+      total_contributions: ranking.total_contributions,
+      last_calculated: ranking.last_calculated_at
+    };
+  }
 
   return report;
 }
