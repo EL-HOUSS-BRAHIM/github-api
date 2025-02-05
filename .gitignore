@@ -8,7 +8,7 @@ yarn.lock
 ./.env
 .env.*
 !.env.example
-./.rc/ca.pem
+.rc
 migrations/
 seeders/
 config/config.js
