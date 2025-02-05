@@ -13,6 +13,7 @@ const githubApi = axios.create({
 
 // Add this after existing imports
 const countryVariations = {
+  'morocco': ['maroc', 'المغرب', 'maghreb', 'marocco', 'marruecos', 'مراكش', 'MAROCCO'],
   'united states': ['usa', 'u.s.a', 'united states of america', 'us', 'u.s.'],
   'united kingdom': ['uk', 'u.k', 'great britain', 'england'],
   'france': ['république française', 'republique francaise', 'francia'],
@@ -111,7 +112,7 @@ async function searchUsersByLocation(location) {
     const searchQueries = buildLocationQueries(countryConfig);
     let allItems = new Map();
     let rateLimit = null;
-    const MAX_PAGES = 10; // GitHub's max pagination limit
+    const MAX_PAGES = 12; // GitHub's max pagination limit
     const DELAY = 2000; // Increased delay between requests
 
     for (const query of searchQueries) {
@@ -123,10 +124,10 @@ async function searchUsersByLocation(location) {
           
           const results = await githubApi.get('/search/users', {
             params: {
-              q: `${query} followers:>30`,
+              q: `${query} followers:>31`,
               sort: 'followers',
               order: 'desc',
-              per_page: 100,
+              per_page: 200,
               page
             }
           });
@@ -241,6 +242,7 @@ function getCountryVariations(countryName) {
   
   // Common country name mappings
   const countryMappings = {
+    'morocco': ['maroc', 'maghreb', 'marocco', 'marruecos', 'المغرب', 'مراكش', 'MOROCCO'],
     'united states': ['usa', 'u.s.a', 'united states of america', 'us', 'u.s.'],
     'united kingdom': ['uk', 'u.k', 'great britain', 'england'],
     'united arab emirates': ['uae', 'u.a.e', 'emirates'],
