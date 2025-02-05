@@ -163,48 +163,9 @@ async function harvestUsersByCountry(req, res, next) {
   }
 }
 
-async function getCountryRankings(req, res, next) {
-  const { country } = req.params;
-  const { page = 1, per_page = 50 } = req.query;
-
-  try {
-    const rankings = await UserRanking.findAll({
-      where: { country },
-      include: [{
-        model: User,
-        attributes: ['username', 'full_name', 'avatar_url', 'location']
-      }],
-      order: [['score', 'DESC']],
-      limit: parseInt(per_page),
-      offset: (parseInt(page) - 1) * parseInt(per_page)
-    });
-
-    const total = await UserRanking.count({ where: { country } });
-
-    return res.json({
-      total,
-      page: parseInt(page),
-      per_page: parseInt(per_page),
-      rankings: rankings.map(rank => ({
-        username: rank.User.username,
-        full_name: rank.User.full_name,
-        avatar_url: rank.User.avatar_url,
-        location: rank.User.location,
-        score: rank.score,
-        country_rank: rank.country_rank,
-        global_rank: rank.global_rank,
-        total_commits: rank.total_commits,
-        total_contributions: rank.total_contributions
-      }))
-    });
-  } catch (error) {
-    next(error);
-  }
-}
 
 module.exports = {
   calculateUserRanking,
   getUserRanking,
-  harvestUsersByCountry,
-  getCountryRankings, // Export the new method
+  harvestUsersByCountry, // Export the new method
 };
