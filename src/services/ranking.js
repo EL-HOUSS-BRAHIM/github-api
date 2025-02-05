@@ -13,7 +13,7 @@ class RankingService {
       where: {
         user_id: user.id,
         date: {
-          [Op.gte]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // Last 90 days
+          [Op.gte]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
         }
       }
     }) || 0;
@@ -21,66 +21,118 @@ class RankingService {
     return baseScore + repoScore + activityScore;
   }
 
-  async updateUserRanking(userId) {
-    const user = await User.findOne({
-      where: { id: userId },
-      include: [Repository, Activity]
-    });
-
-    if (!user) return null;
-
-    const score = await this.calculateUserScore(user);
-    
-    const [ranking] = await UserRanking.findOrCreate({
-      where: { user_id: userId },
-      defaults: {
-        country: user.location,
-        score: score,
-        total_commits: await this.calculateTotalCommits(userId),
-        total_contributions: await this.calculateTotalContributions(userId)
-      }
-    });
-
-    if (!ranking.isNewRecord) {
-      await ranking.update({
-        score,
-        country: user.location,
-        last_calculated_at: new Date()
-      });
-    }
-
-    await this.updateRankings(user.location);
-    return ranking;
-  }
-
-  async updateRankings(country = null) {
-    const queryOptions = country ? { where: { country } } : {};
-    
-    await sequelize.transaction(async (t) => {
-      const rankings = await UserRanking.findAll({
-        ...queryOptions,
-        order: [['score', 'DESC']],
-        transaction: t
-      });
-
-      for (let i = 0; i < rankings.length; i++) {
-        if (country) {
-          await rankings[i].update({ country_rank: i + 1 }, { transaction: t });
-        } else {
-          await rankings[i].update({ global_rank: i + 1 }, { transaction: t });
-        }
-      }
-    });
-  }
-
   async calculateTotalCommits(userId) {
-    return Activity.sum('commits', { where: { user_id: userId } }) || 0;
+    try {
+      const totalCommits = await Activity.sum('commits', {
+        where: { user_id: userId }
+      });
+      return totalCommits || 0;
+    } catch (error) {
+      console.error('Error calculating total commits:', error);
+      return 0;
+    }
   }
 
   async calculateTotalContributions(userId) {
-    const activities = await Activity.findAll({ where: { user_id: userId } });
-    return activities.reduce((sum, activity) => 
-      sum + activity.commits + activity.pull_requests + activity.issues_opened, 0);
+    try {
+      const activities = await Activity.findAll({
+        where: { user_id: userId },
+        attributes: [
+          [sequelize.fn('SUM', sequelize.col('commits')), 'commits'],
+          [sequelize.fn('SUM', sequelize.col('pull_requests')), 'pull_requests'],
+          [sequelize.fn('SUM', sequelize.col('issues_opened')), 'issues_opened']
+        ],
+        raw: true
+      });
+
+      const totals = activities[0];
+      return (
+        (totals.commits || 0) +
+        (totals.pull_requests || 0) +
+        (totals.issues_opened || 0)
+      );
+    } catch (error) {
+      console.error('Error calculating total contributions:', error);
+      return 0;
+    }
+  }
+
+  async updateRankings(country = null) {
+    try {
+      const rankings = await UserRanking.findAll({
+        where: country ? { country } : {},
+        order: [['score', 'DESC']],
+      });
+
+      // Update ranks
+      for (let i = 0; i < rankings.length; i++) {
+        const ranking = rankings[i];
+        if (country) {
+          await ranking.update({ country_rank: i + 1 });
+        } else {
+          await ranking.update({ global_rank: i + 1 });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating rankings:', error);
+      throw error;
+    }
+  }
+
+  async updateUserRanking(userId) {
+    try {
+      const user = await User.findOne({
+        where: { id: userId },
+        include: [Repository, Activity]
+      });
+
+      if (!user) return null;
+
+      const score = await this.calculateUserScore(user);
+      const totalCommits = await this.calculateTotalCommits(userId);
+      const totalContributions = await this.calculateTotalContributions(userId);
+
+      // Use try-catch to debug the UserRanking.findOrCreate call
+      try {
+        const [ranking, created] = await UserRanking.findOrCreate({
+          where: { user_id: userId },
+          defaults: {
+            user_id: userId,
+            country: user.location,
+            score: score,
+            total_commits: totalCommits,
+            total_contributions: totalContributions,
+            last_calculated_at: new Date(),
+            global_rank: 0,
+            country_rank: 0
+          }
+        });
+
+        if (!created) {
+          await ranking.update({
+            score,
+            country: user.location,
+            total_commits: totalCommits,
+            total_contributions: totalContributions,
+            last_calculated_at: new Date()
+          });
+        }
+
+        // Update rankings after score change
+        if (user.location) {
+          await this.updateRankings(user.location);
+        }
+        await this.updateRankings(); // Update global rankings
+
+        return ranking;
+      } catch (findOrCreateError) {
+        console.error('Error in findOrCreate:', findOrCreateError);
+        throw findOrCreateError;
+      }
+    } catch (error) {
+      console.error('Error in updateUserRanking:', error);
+      throw error;
+    }
   }
 }
 
