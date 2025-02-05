@@ -1,5 +1,6 @@
 const { User } = require('../models');
 const rankingService = require('../services/ranking');
+const githubService = require('../services/github'); // Add this import
 const { UserRanking } = require('../models');
 const { APIError } = require('../utils/errors');
 
@@ -60,7 +61,110 @@ async function getUserRanking(req, res, next) {
   }
 }
 
+// Update the harvestUsersByCountry function
+async function harvestUsersByCountry(req, res, next) {
+  const { country } = req.params;
+
+  if (!country || typeof country !== 'string') {
+    return next(new APIError(400, 'Invalid country parameter'));
+  }
+
+  // Format country name properly
+  const formattedCountry = country.charAt(0).toUpperCase() + 
+                          country.slice(1).toLowerCase();
+
+  try {
+    console.log(`Starting user harvest for country: ${formattedCountry}`);
+    
+    const searchResults = await githubService.searchUsersByLocation(formattedCountry);
+    
+    console.log(`Search results:`, {
+      total_count: searchResults.total_count,
+      items_count: searchResults.items?.length,
+      rate_limit: searchResults.rateLimit
+    });
+
+    if (!searchResults.items?.length) {
+      return res.json({
+        success: true,
+        message: `No users found for ${formattedCountry}`,
+        total_found: 0,
+        processed: 0,
+        users: []
+      });
+    }
+
+    const processedUsers = [];
+    const errors = [];
+    
+    for (const user of searchResults.items) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log(`Processing user: ${user.login}`);
+        const userProfile = await githubService.getUserProfile(user.login);
+        
+        if (userProfile) {
+          const [dbUser] = await User.findOrCreate({
+            where: { username: userProfile.login },
+            defaults: {
+              username: userProfile.login,
+              location: userProfile.location,
+              full_name: userProfile.name,
+              avatar_url: userProfile.avatar_url,
+              bio: userProfile.bio,
+              company: userProfile.company,
+              website: userProfile.blog,
+              followers: userProfile.followers,
+              following: userProfile.following,
+              public_repos: userProfile.public_repos
+            }
+          });
+
+          await rankingService.updateUserRanking(dbUser.id);
+          processedUsers.push({
+            username: user.login,
+            followers: userProfile.followers,
+            location: userProfile.location
+          });
+        }
+      } catch (userError) {
+        console.error(`Error processing user ${user.login}:`, userError);
+        errors.push({
+          username: user.login,
+          error: userError.message
+        });
+        
+        if (userError.status === 403) {
+          console.log('Rate limit reached, stopping batch');
+          break;
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Processed GitHub users from ${formattedCountry}`,
+      total_found: searchResults.total_count,
+      processed: processedUsers.length,
+      users: processedUsers,
+      errors: errors.length > 0 ? errors : undefined,
+      rate_limit: searchResults.rateLimit
+    });
+
+  } catch (error) {
+    console.error(`Error harvesting users from ${formattedCountry}:`, error);
+    
+    if (error instanceof APIError) {
+      return next(error);
+    }
+    
+    return next(new APIError(500, `Failed to harvest users from ${formattedCountry}`));
+  }
+}
+
 module.exports = {
   calculateUserRanking,
   getUserRanking,
+  harvestUsersByCountry, // Export the new method
 };
