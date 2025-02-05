@@ -56,9 +56,7 @@ cd github-api
 cp .env.example .env
 ```
 
-3. Configure your environment variables in `.env`
-
-:
+3. Configure your environment variables in `.env`:
 ```
 PORT=3000
 DB_HOST=localhost
