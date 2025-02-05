@@ -37,6 +37,7 @@
     "express": "^4.18.2",
     "ioredis": "^5.4.2",
     "mysql2": "^3.9.1",
+    "node-cron": "^3.0.3",
     "redis": "^4.6.13",
     "sequelize": "^6.37.1",
     "swagger-ui-express": "^5.0.0"
