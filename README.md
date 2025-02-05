@@ -56,9 +56,7 @@ cd github-api
 cp .env.example .env
 ```
 
-3. Configure your environment variables in 
-
-.env
+3. Configure your environment variables in `.env`
 
 :
 ```
@@ -91,9 +89,7 @@ npm run dev
 
 ## API Documentation
 
-Access the Swagger documentation at 
-
-http://localhost:3000/api-docs
+Access the Swagger documentation at http://localhost:3000/api-docs
 
 
 
@@ -144,13 +140,3 @@ EL-HOUSS-BRAHIM
 3. Commit your changes
 4. Push to the branch
 5. Create a new Pull Request
-```
-
-This README provides a comprehensive overview of your project, including:
-- Project description and features
-- Technical stack
-- Setup instructions
-- API documentation
-- Development commands
-- Docker support
-- License and contribution guidelines
