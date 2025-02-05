@@ -11,6 +11,7 @@ yarn.lock
 .rc/
 migrations/
 seeders/
+config/config.js
 # Build output
 dist/
 build/
