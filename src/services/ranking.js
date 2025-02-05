@@ -1,6 +1,7 @@
 const { User, UserRanking, Activity, Repository } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
+const githubService = require('./github'); // Import the GitHub service
 
 class RankingService {
   async calculateUserScore(user) {
@@ -88,49 +89,98 @@ class RankingService {
 
       if (!user) return null;
 
+      // Check follower threshold
+      if (user.followers < 31) {
+        console.log(`Skipping ranking for user ${user.username} - insufficient followers (${user.followers})`);
+        return null;
+      }
+
+      // Normalize location
+      const normalizedLocation = helpers.normalizeLocation(user.location);
+
+      // Get existing ranking
+      let ranking = await UserRanking.findOne({
+        where: { user_id: userId }
+      });
+
+      // Check if we need to update
+      const shouldUpdate = !ranking || 
+                          this.shouldUpdateRanking(ranking, user) ||
+                          ranking.country !== normalizedLocation;
+
+      if (!shouldUpdate) {
+        console.log(`Skipping update for ${user.username} - no significant changes`);
+        return ranking;
+      }
+
       const score = await this.calculateUserScore(user);
       const totalCommits = await this.calculateTotalCommits(userId);
       const totalContributions = await this.calculateTotalContributions(userId);
 
-      // Use try-catch to debug the UserRanking.findOrCreate call
-      try {
-        const [ranking, created] = await UserRanking.findOrCreate({
-          where: { user_id: userId },
-          defaults: {
-            user_id: userId,
-            country: user.location,
-            score: score,
-            total_commits: totalCommits,
-            total_contributions: totalContributions,
-            last_calculated_at: new Date(),
-            global_rank: 0,
-            country_rank: 0
-          }
+      if (!ranking) {
+        ranking = await UserRanking.create({
+          user_id: userId,
+          country: normalizedLocation,
+          score,
+          total_commits: totalCommits,
+          total_contributions: totalContributions,
+          last_calculated_at: new Date(),
+          global_rank: 0,
+          country_rank: 0
         });
-
-        if (!created) {
-          await ranking.update({
-            score,
-            country: user.location,
-            total_commits: totalCommits,
-            total_contributions: totalContributions,
-            last_calculated_at: new Date()
-          });
-        }
-
-        // Update rankings after score change
-        if (user.location) {
-          await this.updateRankings(user.location);
-        }
-        await this.updateRankings(); // Update global rankings
-
-        return ranking;
-      } catch (findOrCreateError) {
-        console.error('Error in findOrCreate:', findOrCreateError);
-        throw findOrCreateError;
+      } else {
+        await ranking.update({
+          score,
+          country: normalizedLocation,
+          total_commits: totalCommits,
+          total_contributions: totalContributions,
+          last_calculated_at: new Date()
+        });
       }
+
+      // Update rankings after score change
+      if (normalizedLocation) {
+        await this.updateRankings(normalizedLocation);
+      }
+      await this.updateRankings();
+
+      return ranking;
     } catch (error) {
       console.error('Error in updateUserRanking:', error);
+      throw error;
+    }
+  }
+
+  // Add helper method to check if update is needed
+  shouldUpdateRanking(ranking, user) {
+    const hoursSinceLastUpdate = (Date.now() - ranking.last_calculated_at) / (1000 * 60 * 60);
+    
+    // Always update if last update was more than 24 hours ago
+    if (hoursSinceLastUpdate >= 24) return true;
+    
+    // Check if basic stats have changed
+    if (user.followers !== ranking.followers ||
+        user.public_repos !== ranking.public_repos) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // Add this new method to fetch users by location
+  async searchUsersByLocation(location, page = 1) {
+    try {
+      const response = await githubApi.get(`/search/users`, {
+        params: {
+          q: `location:${location} followers:>=30`, // Add followers filter
+          page,
+          per_page: 100,
+          sort: 'followers'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error searching users in ${location}:`, error);
       throw error;
     }
   }
