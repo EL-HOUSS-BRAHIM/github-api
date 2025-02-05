@@ -113,7 +113,7 @@ async function searchUsersByLocation(location) {
     let allItems = new Map();
     let rateLimit = null;
     const MAX_PAGES = 12; // GitHub's max pagination limit
-    const DELAY = 2000; // Increased delay between requests
+    const DELAY = 1000; // Increased delay between requests
 
     for (const query of searchQueries) {
       let page = 1;
