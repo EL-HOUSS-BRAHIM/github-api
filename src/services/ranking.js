@@ -1,7 +1,7 @@
 const { User, UserRanking, Activity, Repository } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const githubService = require('./github'); // Import the GitHub service
+const { normalizeLocation } = require('../utils/helpers'); // Add this import
 
 class RankingService {
   async calculateUserScore(user) {
@@ -89,14 +89,13 @@ class RankingService {
 
       if (!user) return null;
 
-      // Check follower threshold
       if (user.followers < 31) {
         console.log(`Skipping ranking for user ${user.username} - insufficient followers (${user.followers})`);
         return null;
       }
 
-      // Normalize location
-      const normalizedLocation = helpers.normalizeLocation(user.location);
+      // Use imported normalizeLocation instead of helpers
+      const normalizedLocation = normalizeLocation(user.location);
 
       // Get existing ranking
       let ranking = await UserRanking.findOne({
