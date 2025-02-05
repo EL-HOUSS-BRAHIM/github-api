@@ -109,16 +109,15 @@ async function searchUsersByLocation(location) {
     }
 
     const searchQueries = buildLocationQueries(countryConfig);
-    let allItems = new Map(); // Use Map to track unique users
-    let totalCount = 0;
+    let allItems = new Map();
     let rateLimit = null;
+    const MAX_PAGES = 10; // GitHub's max pagination limit
+    const DELAY = 2000; // Increased delay between requests
 
-    // Search through multiple pages for each query
     for (const query of searchQueries) {
       let page = 1;
-      let hasMoreResults = true;
-
-      while (hasMoreResults) {
+      
+      while (page <= MAX_PAGES) {
         try {
           console.log(`Making location query: ${query}, page: ${page}`);
           
@@ -132,52 +131,48 @@ async function searchUsersByLocation(location) {
             }
           });
 
-          // Store rate limit info
           rateLimit = {
             remaining: results.headers['x-ratelimit-remaining'],
             reset: results.headers['x-ratelimit-reset']
           };
 
-          // Process results
-          if (results.data.items?.length > 0) {
-            results.data.items.forEach(user => {
-              if (!allItems.has(user.id)) {
-                allItems.set(user.id, user);
-              }
-            });
-
-            // Check if we should continue pagination
-            hasMoreResults = results.data.items.length === 100;
-            page++;
-          } else {
-            hasMoreResults = false;
+          if (!results.data.items?.length) {
+            break;
           }
+
+          results.data.items.forEach(user => {
+            if (!allItems.has(user.id)) {
+              allItems.set(user.id, user);
+            }
+          });
 
           // Add delay between requests
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, DELAY));
 
           // Check rate limit
-          if (rateLimit.remaining === '0') {
-            console.log('Rate limit reached, pausing queries');
+          if (parseInt(rateLimit.remaining) < 10) {
+            console.log('Rate limit nearly reached, waiting...');
             const resetTime = new Date(rateLimit.reset * 1000);
-            const waitTime = resetTime - Date.now() + 1000;
-            if (waitTime > 0) {
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
+            const waitTime = Math.max(0, resetTime - Date.now()) + 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
 
+          page++;
         } catch (error) {
           console.warn(`Query failed: ${query}, page: ${page}`, error.message);
           if (error.response?.status === 403) {
-            console.log('Rate limit reached, stopping current query');
-            break;
+            console.log('Rate limit reached, pausing queries');
+            const resetTime = new Date(rateLimit.reset * 1000);
+            const waitTime = Math.max(0, resetTime - Date.now()) + 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
-          hasMoreResults = false;
+          break;
         }
       }
     }
 
     const uniqueItems = Array.from(allItems.values());
+    console.log(`Total unique users found: ${uniqueItems.length}`);
     
     return {
       total_count: uniqueItems.length,
@@ -216,15 +211,15 @@ function buildLocationQueries(countryConfig) {
   const queries = new Set();
   const variations = countryVariations[countryConfig.country.toLowerCase()] || [];
 
-  // Add country name variations
+  // Add country name variations with different formats
   queries.add(`location:"${countryConfig.geoName}"`);
   queries.add(`location:"${countryConfig.country}"`);
+  queries.add(`location:${countryConfig.geoName}`); // Without quotes
   variations.forEach(v => queries.add(`location:"${v}"`));
 
-  // Add major cities with proper formatting
+  // Add major cities in smaller chunks
   if (countryConfig.cities?.length > 0) {
-    // Split cities into smaller chunks to avoid query length limits
-    const cityChunks = chunk(countryConfig.cities, 3);
+    const cityChunks = chunk(countryConfig.cities, 2); // Reduced chunk size
     for (const cities of cityChunks) {
       const cityQuery = cities
         .map(city => `location:"${city.trim()}"`)
@@ -233,8 +228,9 @@ function buildLocationQueries(countryConfig) {
     }
   }
 
-  // Add fuzzy matching for country name
+  // Add fuzzy matching variations
   queries.add(`location:*${countryConfig.geoName}*`);
+  queries.add(`location:*${countryConfig.country}*`);
   
   return Array.from(queries);
 }
