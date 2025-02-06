@@ -402,5 +402,5 @@ module.exports = {
   getUserActivity,
   searchUsersByLocation,
   getRepoCommitCount,
-  processUserRepos // Add this export
+  processUserRepos
 };
