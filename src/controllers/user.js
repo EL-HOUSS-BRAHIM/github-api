@@ -234,9 +234,41 @@ async function getUserReport(req, res, next) {
   }
 }
 
+/**
+ * @description Refresh user info
+ * @route POST /api/user/:username/refresh
+ */
+async function refreshUserInfo(req, res, next) {
+  const { username } = req.params;
+
+  if (!validateUsername(username)) {
+    return next(new APIError(400, 'Invalid username format'));
+  }
+
+  try {
+    console.log(`Refreshing user info for ${username}`);
+    // Add the job to the harvester queue
+    await harvesterQueue.add({ username }, {
+      jobId: `refresh-${username}`,
+      removeOnComplete: true
+    });
+
+    return res.status(202).json({
+      status: 'refreshing',
+      message: 'User data is being refreshed. Please try again in a few moments.',
+      retryAfter: 5,
+      username
+    });
+  } catch (error) {
+    console.error('Error refreshing user info:', error);
+    return next(error);
+  }
+}
+
 module.exports = {
   getUserProfile,
   getUserRepos,
   getUserActivity,
-  getUserReport
+  getUserReport,
+  refreshUserInfo
 };
