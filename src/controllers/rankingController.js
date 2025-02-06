@@ -1,6 +1,6 @@
 const { User } = require('../models');
 const rankingService = require('../services/ranking');
-const githubService = require('../services/github'); // Add this import
+const githubService = require('../services/github');
 const { UserRanking } = require('../models');
 const { APIError } = require('../utils/errors');
 
@@ -61,7 +61,6 @@ async function getUserRanking(req, res, next) {
   }
 }
 
-// Update the harvestUsersByCountry function
 async function harvestUsersByCountry(req, res, next) {
   const { country } = req.params;
 
@@ -69,9 +68,7 @@ async function harvestUsersByCountry(req, res, next) {
     return next(new APIError(400, 'Invalid country parameter'));
   }
 
-  // Format country name properly
-  const formattedCountry = country.charAt(0).toUpperCase() + 
-                          country.slice(1).toLowerCase();
+  const formattedCountry = country.charAt(0).toUpperCase() + country.slice(1).toLowerCase();
 
   try {
     console.log(`Starting user harvest for country: ${formattedCountry}`);
@@ -163,9 +160,8 @@ async function harvestUsersByCountry(req, res, next) {
   }
 }
 
-
 module.exports = {
   calculateUserRanking,
   getUserRanking,
-  harvestUsersByCountry, // Export the new method
+  harvestUsersByCountry,
 };
