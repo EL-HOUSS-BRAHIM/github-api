@@ -2,7 +2,6 @@ const Queue = require('bull');
 const config = require('../config');
 const { User, Repository, Activity } = require('../models');
 const githubService = require('../services/github');
-const { APIError } = require('../utils/errors');
 
 const harvesterQueue = new Queue('githubHarvester', {
   redis: {
@@ -178,28 +177,25 @@ function aggregateActivity(activity) {
 
     switch (event.type) {
       case 'PushEvent':
-        dailyCounts[date].commits += event.payload.size;
+        dailyCounts[date].commits += event.payload.commits.length;
         break;
       case 'PullRequestEvent':
-        if (event.payload.action === 'opened') {
-          dailyCounts[date].pull_requests += 1;
-        }
+        dailyCounts[date].pull_requests += 1;
         break;
       case 'IssuesEvent':
         if (event.payload.action === 'opened') {
           dailyCounts[date].issues_opened += 1;
         }
         break;
-      // Add more cases as needed
+      default:
+        break;
     }
   });
 
-  const dailyActivity = Object.entries(dailyCounts).map(([date, counts]) => ({
+  return Object.entries(dailyCounts).map(([date, counts]) => ({
     date,
     ...counts,
   }));
-
-  return dailyActivity;
 }
 
 module.exports = harvesterQueue;
