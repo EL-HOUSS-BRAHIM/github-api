@@ -99,14 +99,25 @@ async function getUserRepos(username, page = 1, perPage = 100) {
 
 async function getUserActivity(username, page = 1, perPage = 100) {
   try {
+    // GitHub limits events API to first 300 events (3 pages)
+    if (page > 3) {
+      console.log(`Skipping page ${page} - GitHub limits events to first 300 items`);
+      return [];
+    }
+
     const response = await githubApi.get(`/users/${username}/events`, {
       params: {
         page,
         per_page: perPage,
-      },
+      }
     });
+    
     return response.data;
   } catch (error) {
+    if (error.response?.status === 422) {
+      console.log(`Pagination limit reached for ${username}'s events`);
+      return []; // Return empty array to stop pagination
+    }
     console.error(`Error fetching activity for ${username}:`, error.message);
     throw error;
   }
@@ -288,68 +299,96 @@ function chunk(array, size) {
 }
 
 // Add this new function to get commit count
-async function getRepoCommitCount(username, repo) {
+async function getRepoCommitCount(username, repoName) {
   try {
-    // Use the statistics endpoint to get commit count
-    const response = await githubApi.get(`/repos/${username}/${repo}/stats/participation`);
-    
-    if (response.data && response.data.all) {
-      // Sum up all commits from the last 52 weeks
-      return response.data.all.reduce((sum, count) => sum + count, 0);
-    }
-    
-    // Fallback to counting commits manually if stats are not available
-    const commits = await githubApi.get(`/repos/${username}/${repo}/commits`, {
+    // First try the commits endpoint
+    const response = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
       params: {
         per_page: 1,
         page: 1
       }
     });
 
-    // Get total from response headers
-    const total = parseInt(commits.headers['x-total-count'] || commits.headers['link'], 10);
-    return isNaN(total) ? 0 : total;
+    // Get total from Link header
+    const link = response.headers.link;
+    if (link) {
+      const match = link.match(/page=(\d+)>; rel="last"/);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+
+    // If no Link header, try counting manually (up to a limit)
+    let count = 0;
+    let page = 1;
+    const PER_PAGE = 100;
+    const MAX_PAGES = 10; // Limit to 1000 commits
+
+    while (page <= MAX_PAGES) {
+      const pageResponse = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
+        params: {
+          per_page: PER_PAGE,
+          page: page
+        }
+      });
+
+      const commits = pageResponse.data;
+      count += commits.length;
+
+      if (commits.length < PER_PAGE) {
+        break;
+      }
+
+      page++;
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    return count;
+
   } catch (error) {
-    console.warn(`Error fetching commit count for ${username}/${repo}:`, error.message);
+    console.warn(`Error fetching commit count for ${username}/${repoName}:`, error.message);
     return 0;
   }
 }
 
-// Modify processUserRepos to include the commit count
+// Update processUserRepos function
 async function processUserRepos(username, repos) {
   const processedRepos = [];
   
   for (const repo of repos) {
     try {
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log(`Fetching commit count for ${username}/${repo.name}...`);
+      
+      // Add delay between requests
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const commitCount = await getRepoCommitCount(username, repo.name);
+      console.log(`Got ${commitCount} commits for ${repo.name}`);
       
       processedRepos.push({
         name: repo.name,
         description: repo.description,
-        topics: repo.topics,
-        stars: repo.stargazers_count,
-        forks: repo.forks_count,
-        issues: repo.open_issues_count,
+        topics: repo.topics || [],
+        stars: repo.stargazers_count || 0,
+        forks: repo.forks_count || 0,
+        issues: repo.open_issues_count || 0,
         last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
         commit_count: commitCount,
-        pull_request_count: 0, // We'll handle this separately if needed
+        pull_request_count: 0 // Handle separately if needed
       });
     } catch (error) {
       console.error(`Error processing repo ${repo.name}:`, error);
-      // Add repo with default values if there's an error
       processedRepos.push({
         name: repo.name,
         description: repo.description,
-        topics: repo.topics,
-        stars: repo.stargazers_count,
-        forks: repo.forks_count,
-        issues: repo.open_issues_count,
+        topics: repo.topics || [],
+        stars: repo.stargazers_count || 0,
+        forks: repo.forks_count || 0,
+        issues: repo.open_issues_count || 0,
         last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
         commit_count: 0,
-        pull_request_count: 0,
+        pull_request_count: 0
       });
     }
   }
@@ -361,6 +400,7 @@ module.exports = {
   getUserProfile,
   getUserRepos,
   getUserActivity,
-  searchUsersByLocation, // Export the new method
+  searchUsersByLocation,
   getRepoCommitCount,
+  processUserRepos // Add this export
 };
