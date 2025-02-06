@@ -108,12 +108,12 @@ npm run dev
 
 Run the worker process:
 ```bash
-npm run worker
+no need
 ```
 
 Clear Redis cache:
 ```bash
-npm run clear-cache
+no need
 ```
 
 ## Docker Support
