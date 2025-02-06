@@ -287,9 +287,80 @@ function chunk(array, size) {
   return chunks;
 }
 
+// Add this new function to get commit count
+async function getRepoCommitCount(username, repo) {
+  try {
+    // Use the statistics endpoint to get commit count
+    const response = await githubApi.get(`/repos/${username}/${repo}/stats/participation`);
+    
+    if (response.data && response.data.all) {
+      // Sum up all commits from the last 52 weeks
+      return response.data.all.reduce((sum, count) => sum + count, 0);
+    }
+    
+    // Fallback to counting commits manually if stats are not available
+    const commits = await githubApi.get(`/repos/${username}/${repo}/commits`, {
+      params: {
+        per_page: 1,
+        page: 1
+      }
+    });
+
+    // Get total from response headers
+    const total = parseInt(commits.headers['x-total-count'] || commits.headers['link'], 10);
+    return isNaN(total) ? 0 : total;
+  } catch (error) {
+    console.warn(`Error fetching commit count for ${username}/${repo}:`, error.message);
+    return 0;
+  }
+}
+
+// Modify processUserRepos to include the commit count
+async function processUserRepos(username, repos) {
+  const processedRepos = [];
+  
+  for (const repo of repos) {
+    try {
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const commitCount = await getRepoCommitCount(username, repo.name);
+      
+      processedRepos.push({
+        name: repo.name,
+        description: repo.description,
+        topics: repo.topics,
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        issues: repo.open_issues_count,
+        last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
+        commit_count: commitCount,
+        pull_request_count: 0, // We'll handle this separately if needed
+      });
+    } catch (error) {
+      console.error(`Error processing repo ${repo.name}:`, error);
+      // Add repo with default values if there's an error
+      processedRepos.push({
+        name: repo.name,
+        description: repo.description,
+        topics: repo.topics,
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        issues: repo.open_issues_count,
+        last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
+        commit_count: 0,
+        pull_request_count: 0,
+      });
+    }
+  }
+  
+  return processedRepos;
+}
+
 module.exports = {
   getUserProfile,
   getUserRepos,
   getUserActivity,
   searchUsersByLocation, // Export the new method
+  getRepoCommitCount,
 };
