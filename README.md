@@ -3,8 +3,8 @@
 A robust backend API service for collecting, processing, and serving GitHub user data with location-based rankings and analytics.
 
 ## Last Update
-    05/02/2025
-    tasting ranking future
+    06/02/2025
+    adding user info refresh endpoints and futures
 ## Features
 
 - **User Data Collection**
@@ -108,12 +108,12 @@ npm run dev
 
 Run the worker process:
 ```bash
-npm run worker
+no need
 ```
 
 Clear Redis cache:
 ```bash
-npm run clear-cache
+no need
 ```
 
 ## Docker Support
