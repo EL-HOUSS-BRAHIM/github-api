@@ -3,17 +3,25 @@ const config = require('../config');
 const configJson = require('../config/config.json');
 const { APIError } = require('../utils/errors');
 
+let currentTokenIndex = 0;
+
+function getNextToken() {
+  const token = config.githubTokens[currentTokenIndex];
+  currentTokenIndex = (currentTokenIndex + 1) % config.githubTokens.length;
+  return token;
+}
+
 const githubApi = axios.create({
   baseURL: 'https://api.github.com',
   headers: {
-    Authorization: `token ${config.githubToken}`,
+    Authorization: `token ${getNextToken()}`,
     Accept: 'application/vnd.github.v3+json', // Specify API version
   },
 });
 
 // Add this after existing imports
 const countryVariations = {
-  'morocco': ['maroc', 'المغرب', 'maghreb', 'marocco', 'marruecos', 'مراكش', 'MAROCCO'],
+  'morocco': ['MA', 'maroc', 'المغرب', 'maghreb', 'marocco', 'marruecos', 'مراكش', 'MAROCCO'],
   'united states': ['usa', 'u.s.a', 'united states of america', 'us', 'u.s.'],
   'united kingdom': ['uk', 'u.k', 'great britain', 'england'],
   'france': ['république française', 'republique francaise', 'francia'],
@@ -29,7 +37,7 @@ const countryVariations = {
 // Intercept responses to handle common errors (e.g., rate limiting)
 githubApi.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response) {
       const status = error.response.status;
       if (status === 404) {
@@ -41,7 +49,11 @@ githubApi.interceptors.response.use(
 
         if (rateLimitRemaining === '0') {
           const resetTime = rateLimitReset ? new Date(rateLimitReset * 1000) : null;
-          return Promise.reject(new APIError(403, `GitHub API rate limit exceeded. Resets at ${resetTime}`));
+          console.log(`Rate limit exceeded. Retrying after ${resetTime}`);
+          await new Promise(resolve => setTimeout(resolve, (resetTime - Date.now()) + 1000));
+          // Switch to the next token
+          githubApi.defaults.headers.Authorization = `token ${getNextToken()}`;
+          return githubApi.request(error.config);
         } else {
           return Promise.reject(new APIError(403, 'GitHub API request forbidden'));
         }
@@ -112,8 +124,8 @@ async function searchUsersByLocation(location) {
     const searchQueries = buildLocationQueries(countryConfig);
     let allItems = new Map();
     let rateLimit = null;
-    const MAX_PAGES = 12; // GitHub's max pagination limit
-    const DELAY = 1000; // Increased delay between requests
+    const MAX_PAGES = 5; // Reduce the number of pages to avoid rate limiting
+    const DELAY = 2000; // Increased delay between requests
 
     for (const query of searchQueries) {
       let page = 1;
@@ -127,7 +139,7 @@ async function searchUsersByLocation(location) {
               q: `${query} followers:>31`,
               sort: 'followers',
               order: 'desc',
-              per_page: 200,
+              per_page: 100,
               page
             }
           });
@@ -242,7 +254,7 @@ function getCountryVariations(countryName) {
   
   // Common country name mappings
   const countryMappings = {
-    'morocco': ['maroc', 'maghreb', 'marocco', 'marruecos', 'المغرب', 'مراكش', 'MOROCCO'],
+    'morocco': ['MA', 'maroc', 'maghreb', 'marocco', 'marruecos', 'المغرب', 'مراكش', 'MOROCCO'],
     'united states': ['usa', 'u.s.a', 'united states of america', 'us', 'u.s.'],
     'united kingdom': ['uk', 'u.k', 'great britain', 'england'],
     'united arab emirates': ['uae', 'u.a.e', 'emirates'],
