@@ -14,7 +14,7 @@ module.exports = {
       rejectUnauthorized: true, // Ensure SSL is required
     },
   },
-  githubToken: process.env.GITHUB_TOKEN,
+  githubTokens: process.env.GITHUB_TOKENS.split(','), // Split the tokens into an array
   redis: {
     host: process.env.REDIS_HOST,
     port: process.env.REDIS_PORT,
