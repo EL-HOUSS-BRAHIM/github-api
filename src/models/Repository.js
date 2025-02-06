@@ -50,7 +50,10 @@ const Repository = sequelize.define('Repository', {
   commit_count: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 0
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
   },
   pull_request_count: {
     type: DataTypes.INTEGER,
