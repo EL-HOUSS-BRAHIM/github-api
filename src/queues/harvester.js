@@ -1,5 +1,6 @@
 const Queue = require('bull');
 const config = require('../config');
+const sequelize = require('../config/database'); // Add this import
 const { User, Repository, Activity } = require('../models');
 const githubService = require('../services/github');
 
@@ -75,7 +76,8 @@ harvesterQueue.process(5, async (job) => {
   }
 });
 
-// Add new job type handler
+// Update the refresh-user process handler
+// In the refresh-user process handler, update the processUserRepos call:
 harvesterQueue.process('refresh-user', 5, async (job) => {
   const { username } = job.data;
 
@@ -95,7 +97,7 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
 
     // Process and save data
     const processedUser = processUserProfile(userProfile);
-    const processedRepos = processUserRepos(userRepos);
+    const processedRepos = await githubService.processUserRepos(username, userRepos); // Using imported function
 
     // Update database
     await saveToDatabase(processedUser, processedRepos, userActivity);
@@ -111,30 +113,55 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
   }
 });
 
-// Extract database operations
+// Update saveToDatabase function
 async function saveToDatabase(userData, repoData, activityData) {
-  const [user, created] = await User.findOrCreate({
-    where: { username: userData.username },
-    defaults: userData,
-  });
+  let transaction;
+  try {
+    // Start transaction
+    transaction = await sequelize.transaction();
 
-  if (!created) {
-    await user.update(userData);
-  }
-
-  // Upsert repos
-  for (const repo of repoData) {
-    await Repository.upsert({
-      ...repo,
-      user_id: user.id
+    // Find or create user
+    const [user, created] = await User.findOrCreate({
+      where: { username: userData.username },
+      defaults: userData,
+      transaction
     });
-  }
 
-  // Replace activity
-  await Activity.destroy({ where: { user_id: user.id } });
-  await Activity.bulkCreate(
-    activityData.map(activity => ({ ...activity, user_id: user.id }))
-  );
+    // Update if user exists
+    if (!created) {
+      await user.update(userData, { transaction });
+    }
+
+    // Upsert repositories
+    for (const repo of repoData) {
+      await Repository.upsert({
+        ...repo,
+        user_id: user.id
+      }, { transaction });
+    }
+
+    // Replace activities
+    await Activity.destroy({ 
+      where: { user_id: user.id },
+      transaction
+    });
+    
+    if (activityData.length > 0) {
+      await Activity.bulkCreate(
+        activityData.map(activity => ({ ...activity, user_id: user.id })),
+        { transaction }
+      );
+    }
+
+    // Commit transaction
+    await transaction.commit();
+
+  } catch (error) {
+    // Rollback transaction on error
+    if (transaction) await transaction.rollback();
+    console.error('Error saving to database:', error);
+    throw error;
+  }
 }
 
 // Helper functions to process data into the format you need for your database
@@ -157,6 +184,8 @@ function processUserProfile(data) {
   };
 }
 
+// Remove or comment out the local processUserRepos function since we're using the one from githubService
+/*
 function processUserRepos(repos) {
   return repos.map(repo => ({
     name: repo.name,
@@ -166,10 +195,11 @@ function processUserRepos(repos) {
     forks: repo.forks_count,
     issues: repo.open_issues_count,
     last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
-    commit_count: 0, // You'll need to fetch commit count separately
-    pull_request_count: 0, // You'll need to fetch PR count separately
+    commit_count: 0, 
+    pull_request_count: 0,
   }));
 }
+*/
 
 async function processUserActivity(username) {
   const allActivity = [];
@@ -177,7 +207,7 @@ async function processUserActivity(username) {
   const perPage = 100;
   let keepFetching = true;
 
-  while (keepFetching) {
+  while (keepFetching && page <= 3) { // Limit to 3 pages (GitHub's limit)
     try {
       const activityPage = await githubService.getUserActivity(username, page, perPage);
 
@@ -186,10 +216,16 @@ async function processUserActivity(username) {
       } else {
         allActivity.push(...activityPage);
         page++;
+        // Add small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
+      if (error.response?.status === 422) {
+        console.log(`Reached GitHub's pagination limit for ${username}`);
+        break;
+      }
       console.error(`Error fetching activity page ${page} for ${username}:`, error);
-      keepFetching = false; // Stop fetching on error
+      keepFetching = false;
     }
   }
 
