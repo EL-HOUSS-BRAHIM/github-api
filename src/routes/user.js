@@ -5,14 +5,14 @@ const userController = require('../controllers/user');
 // Route to get a user's profile
 router.get('/:username', userController.getUserProfile);
 
-// Route to get a user's repositories
+// Route to get a user's repositories 
 router.get('/:username/repos', userController.getUserRepos);
 
 // Route to get a user's activity
 router.get('/:username/activity', userController.getUserActivity);
 
 // Route to get a user's report
-router.get('/:username/report', userController.getUserReport); // Changed from getAggregatedReport
+router.get('/:username/report', userController.getUserReport);
 
 // Route to refresh user info
 router.post('/:username/refresh', userController.refreshUserInfo);
