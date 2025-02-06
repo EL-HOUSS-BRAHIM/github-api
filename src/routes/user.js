@@ -14,4 +14,7 @@ router.get('/:username/activity', userController.getUserActivity);
 // Route to get a user's report
 router.get('/:username/report', userController.getUserReport); // Changed from getAggregatedReport
 
+// Route to refresh user info
+router.post('/:username/refresh', userController.refreshUserInfo);
+
 module.exports = router;
