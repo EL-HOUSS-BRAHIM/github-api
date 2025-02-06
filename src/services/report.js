@@ -1,3 +1,5 @@
+const { UserRanking } = require('../models'); // Add this import
+
 async function generateReport(user) {
   const report = {
     profile: {
