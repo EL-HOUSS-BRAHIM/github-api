@@ -55,13 +55,13 @@ harvesterQueue.process(5, async (job) => {
     job.progress(30);
     const userRepos = await githubService.getUserRepos(username);
     
-    job.progress(50);
+    job.progress(40);
     const userActivity = await processUserActivity(username);
 
     // 2. Process Data
-    job.progress(70);
+    job.progress(60);
     const processedUserData = processUserProfile(userProfile);
-    const processedRepoData = processUserRepos(userRepos);
+    const processedRepoData = await githubService.processUserRepos(username, userRepos);
 
     // 3. Save to Database
     job.progress(90);
@@ -71,6 +71,42 @@ harvesterQueue.process(5, async (job) => {
     return { success: true, username };
   } catch (error) {
     console.error(`Job failed for ${username}:`, error);
+    throw error;
+  }
+});
+
+// Add new job type handler
+harvesterQueue.process('refresh-user', 5, async (job) => {
+  const { username } = job.data;
+
+  try {
+    job.progress(10);
+    console.log(`Starting refresh for user ${username}`);
+
+    // Fetch fresh data from GitHub
+    const userProfile = await githubService.getUserProfile(username);
+    job.progress(30);
+
+    const userRepos = await githubService.getUserRepos(username);
+    job.progress(50);
+
+    const userActivity = await processUserActivity(username);
+    job.progress(70);
+
+    // Process and save data
+    const processedUser = processUserProfile(userProfile);
+    const processedRepos = processUserRepos(userRepos);
+
+    // Update database
+    await saveToDatabase(processedUser, processedRepos, userActivity);
+    
+    job.progress(100);
+    console.log(`Refresh completed for user ${username}`);
+
+    return { success: true, username };
+
+  } catch (error) {
+    console.error(`Refresh failed for ${username}:`, error);
     throw error;
   }
 });
