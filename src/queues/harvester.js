@@ -85,21 +85,19 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
     job.progress(10);
     console.log(`Starting refresh for user ${username}`);
 
-    // Fetch fresh data from GitHub
     const userProfile = await githubService.getUserProfile(username);
     job.progress(30);
 
+    // Use the service function directly
     const userRepos = await githubService.getUserRepos(username);
     job.progress(50);
 
     const userActivity = await processUserActivity(username);
     job.progress(70);
 
-    // Process and save data
     const processedUser = processUserProfile(userProfile);
-    const processedRepos = await githubService.processUserRepos(username, userRepos); // Using imported function
+    const processedRepos = await githubService.processUserRepos(username, userRepos);
 
-    // Update database
     await saveToDatabase(processedUser, processedRepos, userActivity);
 
     job.progress(100);
