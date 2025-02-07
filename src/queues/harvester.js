@@ -58,7 +58,6 @@ harvesterQueue.process(5, async (job) => {
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
     const socialAccounts = await githubService.getUserSocialAccounts(username);
-    console.log(userProfile);
 
     // 2. Fetch Extra Profile Data (optional fields)
     job.progress(20);
@@ -119,7 +118,6 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
     const userProfile = await githubService.getUserProfile(username);
     const socialAccounts = await githubService.getUserSocialAccounts(username);
     job.progress(30);
-    console.log(userProfile);
 
     const profileData = processUserProfile(userProfile);
     profileData.social = { ...profileData.social, ...socialAccounts };
@@ -334,21 +332,22 @@ function extractSocialAccounts(bio, blog, socialUrls = []) {
   return social;
 }
 
+
 function processUserProfile(data) {
-  // Get social info from GitHub API
+  // First check for twitter_username from GitHub API
   const social = {
     twitter: data.twitter_username || null,
     github: data.login || null
   };
 
-  // Extract social accounts from bio, blog and any additional URLs
+  // Then extract additional social accounts from bio and blog
   const extractedSocial = extractSocialAccounts(
-    data.bio || '', 
+    data.bio || '',
     data.blog || '',
     [data.html_url]  // Add GitHub profile URL
   );
 
-  // Merge, preferring GitHub API data for Twitter
+  // Merge the social accounts, preferring GitHub API data for Twitter
   const mergedSocial = {
     ...extractedSocial,
     twitter: social.twitter || extractedSocial.twitter,
