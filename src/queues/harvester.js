@@ -217,91 +217,93 @@ async function saveToDatabase(userData, repoData, activityData) {
 function extractSocialAccounts(bio, blog) {
   const social = {};
 
-  if (bio) {
-    const twitterMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?twitter\.com\/([a-zA-Z0-9_]+)/i);
-    if (twitterMatch) social.twitter = twitterMatch[1];
+  const patterns = {
+      twitter: /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com\/|x\.com\/)([a-zA-Z0-9_]+)|@([a-zA-Z0-9_]+)/i,
+      linkedin: /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|profile)\/([a-zA-Z0-9_-]+)/i,
+      youtube: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:c\/|channel\/|user\/)?|youtu\.be\/)([a-zA-Z0-9_-]+)/i,
+      mastodon: /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9_-]+\.social)\/@([a-zA-Z0-9_]+)/i,
+      discord: /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discordapp\.com\/invite\/|discord\.com\/invite\/)([a-zA-Z0-9_-]+)/i,
+      facebook: /(?:https?:\/\/)?(?:www\.)?(?:facebook\.com|fb\.me)\/([a-zA-Z0-9_.]+)/i,
+      instagram: /(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([a-zA-Z0-9_\.]+)\/?/i,
+      twitch: /(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i,
+      github: /(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)/i,
+      medium: /(?:https?:\/\/)?(?:www\.)?medium\.com\/@([a-zA-Z0-9_.-]+)/i,
+      dev: /(?:https?:\/\/)?(?:www\.)?dev\.to\/([a-zA-Z0-9_-]+)/i,
+      stackoverflow: /(?:https?:\/\/)?(?:www\.)?stackoverflow\.com\/users\/[0-9]+\/([a-zA-Z0-9_-]+)/i,
+      telegram: /(?:https?:\/\/)?(?:www\.)?t\.me\/([a-zA-Z0-9_]+)/i,
+      gitlab: /(?:https?:\/\/)?(?:www\.)?gitlab\.com\/([a-zA-Z0-9_-]+)/i,
+      behance: /(?:https?:\/\/)?(?:www\.)?behance\.net\/([a-zA-Z0-9_-]+)/i,
+      dribbble: /(?:https?:\/\/)?(?:www\.)?dribbble\.com\/([a-zA-Z0-9_-]+)/i,
+      hashnode: /(?:https?:\/\/)?(?:www\.)?hashnode\.com\/@([a-zA-Z0-9_-]+)/i
+  };
 
-    const linkedinMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i);
-    if (linkedinMatch) social.linkedin = linkedinMatch[1];
+  const extract = (text, platform) => {
+      if (!text) return;
+      const match = text.match(patterns[platform]);
+      if (match) {
+          // Find first non-null capture group
+          const username = match.slice(1).find(group => group);
+          if (username) {
+              social[platform] = username.toLowerCase();
+          }
+      }
+  };
 
-    const youtubeMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i);
-    if (youtubeMatch) social.youtube = youtubeMatch[1];
+  // Extract from both bio and blog
+  [bio, blog].forEach(text => {
+      if (text) {
+          Object.keys(patterns).forEach(platform => {
+              if (!social[platform]) { // Only extract if not already found
+                  extract(text, platform);
+              }
+          });
+      }
+  });
 
-    const mastodonMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?mastodon\.social\/@([a-zA-Z0-9_]+)/i);
-    if (mastodonMatch) social.mastodon = mastodonMatch[1];
-
-    const discordMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?discord\.gg\/([a-zA-Z0-9_]+)/i);
-    if (discordMatch) social.discord = discordMatch[1];
-
-    const facebookMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9_.]+)/i);
-    if (facebookMatch) social.facebook = facebookMatch[1];
-
-    const instagramMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)/i);
-    if (instagramMatch) social.instagram = instagramMatch[1];
-
-    const twitchMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i);
-    if (twitchMatch) social.twitch = twitchMatch[1];
-  }
-
-  if (blog) {
-    const twitterMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?twitter\.com\/([a-zA-Z0-9_]+)/i);
-    if (twitterMatch) social.twitter = twitterMatch[1];
-
-    const linkedinMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i);
-    if (linkedinMatch) social.linkedin = linkedinMatch[1];
-
-    const youtubeMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i);
-    if (youtubeMatch) social.youtube = youtubeMatch[1];
-
-    const mastodonMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?mastodon\.social\/@([a-zA-Z0-9_]+)/i);
-    if (mastodonMatch) social.mastodon = mastodonMatch[1];
-
-    const discordMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?discord\.gg\/([a-zA-Z0-9_]+)/i);
-    if (discordMatch) social.discord = discordMatch[1];
-
-    const facebookMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9_.]+)/i);
-    if (facebookMatch) social.facebook = facebookMatch[1];
-
-    const instagramMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)/i);
-    if (instagramMatch) social.instagram = instagramMatch[1];
-
-    const twitchMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i);
-    if (twitchMatch) social.twitch = twitchMatch[1];
-  }
+  // Clean up the social object by removing null/undefined values
+  Object.keys(social).forEach(key => {
+      if (!social[key]) {
+          delete social[key];
+      }
+  });
 
   return social;
 }
 
 function processUserProfile(data) {
-  // First check for twitter_username from GitHub API
+  // First get social accounts from GitHub API
   const social = {
-    twitter: data.twitter_username || null,
-    instagram: data.instagram_username || null
+      twitter: data.twitter_username || null,
+      instagram: data.instagram_username || null,
+      github: data.login || null,
   };
 
-  // Then extract additional social accounts from bio and blog
+  // Extract additional social accounts from bio and blog
   const extractedSocial = extractSocialAccounts(data.bio, data.blog);
 
   // Merge the social accounts, preferring the GitHub API data
   const mergedSocial = {
-    ...extractedSocial,
-    ...social,
-    // Only keep twitter from social if it exists
-    twitter: social.twitter || extractedSocial.twitter
+      ...extractedSocial,
+      ...social,
+      // Only keep values from social object that exist
+      ...Object.fromEntries(
+          Object.entries(social)
+              .filter(([_, value]) => value !== null)
+      )
   };
 
   return {
-    username: data.login,
-    full_name: data.name,
-    avatar_url: data.avatar_url,
-    bio: data.bio,
-    location: data.location,
-    company: data.company,
-    website: data.blog,
-    followers: data.followers,
-    following: data.following,
-    public_repos: data.public_repos,
-    social: mergedSocial,
+      username: data.login,
+      full_name: data.name,
+      avatar_url: data.avatar_url,
+      bio: data.bio,
+      location: data.location,
+      company: data.company,
+      website: data.blog,
+      followers: data.followers,
+      following: data.following,
+      public_repos: data.public_repos,
+      social: mergedSocial,
   };
 }
 
