@@ -63,10 +63,13 @@ const Repository = sequelize.define('Repository', {
 }, {
   // Optional: Add indexes for faster querying
   indexes: [
-    { fields: ['user_id'] },
-    { fields: ['name'] }, // If you often search by name
-    { fields: ['stars'] }, // If you often sort or filter by stars
-  ],
+    {
+      unique: true,
+      fields: ['user_id', 'name'],
+      name: 'repositories_user_id_name'
+    },
+    { fields: ['stars'] }
+  ]
 });
 
 // Define the association between User and Repository (one-to-many)
