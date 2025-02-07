@@ -56,13 +56,13 @@ harvesterQueue.process(5, async (job) => {
     // 1. Fetch Complete Profile Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
-    console.log(userProfile); // Add this line
+    console.log(userProfile);
 
     // 2. Fetch Extra Profile Data (optional fields)
     job.progress(20);
     const extraData = await Promise.all([
-      githubService.getUserOrganizations(username),  // Add this function to githubService
-      githubService.getUserGists(username)          // Add this function to githubService
+      githubService.getUserOrganizations(username),
+      githubService.getUserGists(username)
     ]);
 
     // 3. Fetch Repos with Extended Info
@@ -190,7 +190,67 @@ async function saveToDatabase(userData, repoData, activityData) {
 
 // Helper functions to process data into the format you need for your database
 
+function extractSocialAccounts(bio, blog) {
+  const social = {};
+
+  if (bio) {
+    const twitterMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?twitter\.com\/([a-zA-Z0-9_]+)/i);
+    if (twitterMatch) social.twitter = twitterMatch[1];
+
+    const linkedinMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i);
+    if (linkedinMatch) social.linkedin = linkedinMatch[1];
+
+    const youtubeMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i);
+    if (youtubeMatch) social.youtube = youtubeMatch[1];
+
+    const mastodonMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?mastodon\.social\/@([a-zA-Z0-9_]+)/i);
+    if (mastodonMatch) social.mastodon = mastodonMatch[1];
+
+    const discordMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?discord\.gg\/([a-zA-Z0-9_]+)/i);
+    if (discordMatch) social.discord = discordMatch[1];
+
+    const facebookMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9_.]+)/i);
+    if (facebookMatch) social.facebook = facebookMatch[1];
+
+    const instagramMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)/i);
+    if (instagramMatch) social.instagram = instagramMatch[1];
+
+    const twitchMatch = bio.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i);
+    if (twitchMatch) social.twitch = twitchMatch[1];
+  }
+
+  if (blog) {
+    const twitterMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?twitter\.com\/([a-zA-Z0-9_]+)/i);
+    if (twitterMatch) social.twitter = twitterMatch[1];
+
+    const linkedinMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i);
+    if (linkedinMatch) social.linkedin = linkedinMatch[1];
+
+    const youtubeMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i);
+    if (youtubeMatch) social.youtube = youtubeMatch[1];
+
+    const mastodonMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?mastodon\.social\/@([a-zA-Z0-9_]+)/i);
+    if (mastodonMatch) social.mastodon = mastodonMatch[1];
+
+    const discordMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?discord\.gg\/([a-zA-Z0-9_]+)/i);
+    if (discordMatch) social.discord = discordMatch[1];
+
+    const facebookMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?facebook\.com\/([a-zA-Z0-9_.]+)/i);
+    if (facebookMatch) social.facebook = facebookMatch[1];
+
+    const instagramMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)/i);
+    if (instagramMatch) social.instagram = instagramMatch[1];
+
+    const twitchMatch = blog.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i);
+    if (twitchMatch) social.twitch = twitchMatch[1];
+  }
+
+  return social;
+}
+
 function processUserProfile(data) {
+  const social = extractSocialAccounts(data.bio, data.blog);
+
   return {
     username: data.login,
     full_name: data.name,
@@ -202,16 +262,7 @@ function processUserProfile(data) {
     followers: data.followers,
     following: data.following,
     public_repos: data.public_repos,
-    social: {
-      twitter: data.twitter_username,
-      linkedin: data.linkedin_url, // Update this line
-      youtube: data.youtube_url, // Update this line
-      mastodon: data.mastodon,
-      discord: data.discord,
-      facebook: data.facebook_username,
-      instagram: data.instagram_username,
-      twitch: data.twitch_username
-    },
+    social: social,
   };
 }
 
