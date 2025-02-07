@@ -1,20 +1,25 @@
 const { Sequelize } = require('sequelize');
-const config = require('./index'); // Assuming you have database config in index.js
+const config = require('./index');
 
 const sequelize = new Sequelize(config.db.name, config.db.user, config.db.password, {
   host: config.db.host,
   port: config.db.port,
   dialect: 'mysql',
-  logging: false, // Set to true to see SQL queries (useful for debugging)
+  logging: false,
   dialectOptions: {
     ssl: config.db.ssl,
+    // Add this to handle timestamps
+    dateStrings: true,
+    typeCast: true,
+    // Add this line to allow invalid dates
+    flags: '-DATE_INVALID_DATES',
   },
-  // Pool configuration (important for serverless environments)
+  timezone: '+00:00', // Add this to handle timezone consistently
   pool: {
-    max: 5,    // Maximum number of connections in pool
-    min: 0,    // Minimum number of connections in pool
-    acquire: 30000, // Maximum time (ms) that pool will try to get a connection before throwing error
-    idle: 10000,   // Maximum time (ms) that a connection can be idle before being released
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
   },
 });
 
