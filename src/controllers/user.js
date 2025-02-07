@@ -220,22 +220,34 @@ async function getUserReport(req, res, next) {
         },
         {
           model: Repository,
-          attributes: ['name', 'stars', 'forks', 'issues']
+          attributes: [
+            'name',
+            'description',
+            'stars',
+            'forks',
+            'issues',
+            'last_commit',
+            'commit_count',
+            'pull_request_count',
+            'topics'
+          ]
         }
       ]
     });
 
     if (!user) {
-      throw new APIError(404, 'User not found');
+      return next(new APIError(404, 'User not found'));
     }
 
-    // Process activities with date handling
+    // Process activities for report
     user.Activities = user.Activities.map(activity => ({
       ...activity.toJSON(),
       date: activity.date instanceof Date ? activity.date.toISOString().split('T')[0] : activity.date
     }));
 
+    // Generate full report
     const report = await reportService.generateReport(user);
+
     return res.json(report);
 
   } catch (error) {
