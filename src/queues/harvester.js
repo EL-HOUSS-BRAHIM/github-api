@@ -47,30 +47,83 @@ harvesterQueue.on('error', (error) => {
 // Process jobs with concurrency limit
 harvesterQueue.process(5, async (job) => {
   const { username } = job.data;
+  let transaction;
+  let user;
 
   try {
-    // 1. Fetch Data
+    // Start transaction
+    transaction = await sequelize.transaction();
+
+    // Find user
+    user = await User.findOne({ where: { username }, transaction });
+
+    if (user) {
+      // Mark user as being fetched
+      await user.update({ is_fetching: true }, { transaction });
+    } else {
+      // User doesn't exist, but we'll create them later
+    }
+
+    await transaction.commit();
+
+    // 1. Fetch Complete Profile Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
 
+    // 2. Fetch Extra Profile Data (optional fields)
+    job.progress(20);
+    const extraData = await Promise.all([
+      githubService.getUserOrganizations(username),  // Add this function to githubService
+      githubService.getUserGists(username)          // Add this function to githubService
+    ]);
+
+    // 3. Fetch Repos with Extended Info
     job.progress(30);
     const userRepos = await githubService.getUserRepos(username);
 
+    // 4. Fetch Recent Activity
     job.progress(40);
     const userActivity = await processUserActivity(username);
 
-    // 2. Process Data
+    // 5. Process All Data
     job.progress(60);
-    const processedUserData = processUserProfile(userProfile);
+    const processedUserData = {
+      ...processUserProfile(userProfile),
+      organizations: extraData[0],
+      gists_count: extraData[1].length,
+      last_fetched: new Date(),
+      is_fetching: false
+    };
+
     const processedRepoData = await githubService.processUserRepos(username, userRepos);
 
-    // 3. Save to Database
+    // 6. Save Everything
     job.progress(90);
     await saveToDatabase(processedUserData, processedRepoData, userActivity);
 
+    // Clear cache after successful update
+    await redisClient.del(`user:${username}:profile`);
+    await redisClient.del(`user:${username}:repos:*`);
+
+    // Mark user as not being fetched
+    if (user) {
+      await user.update({ is_fetching: false });
+    }
+
     job.progress(100);
     return { success: true, username };
+
   } catch (error) {
+    // Rollback transaction on error
+    if (transaction) {
+      await transaction.rollback();
+    }
+
+    // Reset fetching status on error
+    if (user) {
+      await user.update({ is_fetching: false });
+    }
+
     console.error(`Job failed for ${username}:`, error);
     throw error;
   }
@@ -178,6 +231,13 @@ function processUserProfile(data) {
     public_repos: data.public_repos,
     social: {
       twitter: data.twitter_username,
+      linkedin: data.linkedin,
+      youtube: data.youtube,
+      mastodon: data.mastodon,
+      discord: data.discord,
+      facebook: data.facebook_username,
+      instagram: data.instagram_username,
+      twitch: data.twitch_username
     },
   };
 }
