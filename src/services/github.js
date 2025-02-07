@@ -415,87 +415,19 @@ async function processUserRepos(username, repos) {
 }
 
 // Update getUserRepos with better pagination and deduplication
-async function getUserRepos(req, res, next) {
-  const { username } = req.params;
-  const page = parseInt(req.query.page) || 1;
-  const per_page = parseInt(req.query.per_page) || 10;
-
-  if (!validateUsername(username)) {
-    return next(new APIError(400, 'Invalid username format'));
-  }
-
+async function getUserRepos(username, page = 1, perPage = 100) {
   try {
-    // Cache key includes sort parameters
-    const cacheKey = `user:${username}:repos:${page}:${per_page}`;
-    const cachedRepos = await redisClient.get(cacheKey);
-    
-    if (cachedRepos) {
-      return res.json(JSON.parse(cachedRepos));
-    }
-
-    const user = await User.findOne({
-      where: { username },
-      include: [{
-        model: Repository,
-        attributes: [
-          'name',
-          'description',
-          'stars',
-          'forks', 
-          'issues',
-          'last_commit',
-          'commit_count',
-          'pull_request_count',
-          'topics'
-        ],
-        // Add ordering to prevent duplicates
-        order: [
-          ['stars', 'DESC'],
-          ['name', 'ASC']
-        ]
-      }]
+    const response = await githubApi.get(`/users/${username}/repos`, {
+      params: {
+        page,
+        per_page: perPage,
+        sort: 'updated',
+      },
     });
-
-    if (!user) {
-      return next(new APIError(404, 'User not found'));
-    }
-
-    // Get total count
-    const total = await Repository.count({
-      where: { user_id: user.id }
-    });
-
-    // Calculate pagination
-    const offset = (page - 1) * per_page;
-    const repos = user.Repositories
-      .slice(offset, offset + per_page)
-      .map(repo => ({
-        name: repo.name,
-        description: repo.description,
-        stars: repo.stars,
-        forks: repo.forks,
-        issues: repo.issues,
-        last_commit: repo.last_commit,
-        commit_count: repo.commit_count,
-        pull_request_count: repo.pull_request_count,
-        topics: repo.topics || []
-      }));
-
-    const response = {
-      total_count: total,
-      page,
-      per_page,
-      repos
-    };
-
-    // Cache for 1 hour
-    await redisClient.set(cacheKey, JSON.stringify(response), 'EX', 3600);
-
-    return res.json(response);
-
+    return response.data;
   } catch (error) {
-    console.error('Error fetching repositories:', error);
-    return next(error);
+    console.error(`Error fetching repos for ${username}:`, error.message);
+    throw error;
   }
 }
 
