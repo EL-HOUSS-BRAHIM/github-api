@@ -275,7 +275,8 @@ function extractSocialAccounts(bio, blog) {
 function processUserProfile(data) {
   // First check for twitter_username from GitHub API
   const social = {
-    twitter: data.twitter_username || null
+    twitter: data.twitter_username || null,
+    instagram: data.instagram_username || null
   };
 
   // Then extract additional social accounts from bio and blog
