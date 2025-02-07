@@ -1,3 +1,4 @@
+// src/controllers/rankingController.js
 const { User } = require('../models');
 const rankingService = require('../services/ranking');
 const githubService = require('../services/github');
@@ -8,11 +9,11 @@ async function calculateUserRanking(req, res, next) {
   const { username } = req.params;
 
   try {
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       where: { username },
       attributes: ['id', 'username', 'location']
     });
-    
+
     if (!user) {
       throw new APIError(404, 'User not found');
     }
@@ -72,9 +73,9 @@ async function harvestUsersByCountry(req, res, next) {
 
   try {
     console.log(`Starting user harvest for country: ${formattedCountry}`);
-    
+
     const searchResults = await githubService.searchUsersByLocation(formattedCountry);
-    
+
     console.log(`Search results:`, {
       total_count: searchResults.total_count,
       items_count: searchResults.items?.length,
@@ -93,14 +94,14 @@ async function harvestUsersByCountry(req, res, next) {
 
     const processedUsers = [];
     const errors = [];
-    
+
     for (const user of searchResults.items) {
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log(`Processing user: ${user.login}`);
         const userProfile = await githubService.getUserProfile(user.login);
-        
+
         if (userProfile) {
           const [dbUser] = await User.findOrCreate({
             where: { username: userProfile.login },
@@ -131,7 +132,7 @@ async function harvestUsersByCountry(req, res, next) {
           username: user.login,
           error: userError.message
         });
-        
+
         if (userError.status === 403) {
           console.log('Rate limit reached, stopping batch');
           break;
@@ -151,11 +152,11 @@ async function harvestUsersByCountry(req, res, next) {
 
   } catch (error) {
     console.error(`Error harvesting users from ${formattedCountry}:`, error);
-    
+
     if (error instanceof APIError) {
       return next(error);
     }
-    
+
     return next(new APIError(500, `Failed to harvest users from ${formattedCountry}`));
   }
 }
