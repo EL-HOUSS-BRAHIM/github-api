@@ -1,3 +1,4 @@
+// src/worker.js
 require('dotenv').config();
 const harvesterQueue = require('./queues/harvester');
 
