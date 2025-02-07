@@ -8,6 +8,10 @@
     "dev": "concurrently \"nodemon src/server.js\" \"nodemon src/worker.js\"",
     "test": "jest",
     "worker": "node src/worker.js",
+    "migrate": "sequelize-cli db:migrate",
+    "db:drop": "sequelize db:drop",
+    "db:create": "sequelize db:create",
+    "migrate:undo": "sequelize-cli db:migrate:undo",
     "clear-cache": "node scripts/redis-cli.js"
   },
   "repository": {
