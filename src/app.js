@@ -29,9 +29,9 @@ app.use((err, req, res, next) => {
   console.error('Error Name:', err.name);
 
   if (err instanceof APIError) {
-    return res.status(err.statusCode).json({ 
+    return res.status(err.statusCode).json({
       error: err.message,
-      status: err.statusCode 
+      status: err.statusCode
     });
   }
 
@@ -44,7 +44,7 @@ app.use((err, req, res, next) => {
   }
 
   // Generic error response
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
