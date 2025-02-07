@@ -47,24 +47,11 @@ harvesterQueue.on('error', (error) => {
 // Process jobs with concurrency limit
 harvesterQueue.process(5, async (job) => {
   const { username } = job.data;
-  let transaction;
   let user;
 
   try {
-    // Start transaction
-    transaction = await sequelize.transaction();
-
     // Find user
-    user = await User.findOne({ where: { username }, transaction });
-
-    if (user) {
-      // Mark user as being fetched
-      await user.update({ is_fetching: true }, { transaction });
-    } else {
-      // User doesn't exist, but we'll create them later
-    }
-
-    await transaction.commit();
+    user = await User.findOne({ where: { username } });
 
     // 1. Fetch Complete Profile Data
     job.progress(10);
@@ -106,25 +93,10 @@ harvesterQueue.process(5, async (job) => {
     await redisClient.del(`user:${username}:profile`);
     await redisClient.del(`user:${username}:repos:*`);
 
-    // Mark user as not being fetched
-    if (user) {
-      await user.update({ is_fetching: false });
-    }
-
     job.progress(100);
     return { success: true, username };
 
   } catch (error) {
-    // Rollback transaction on error
-    if (transaction) {
-      await transaction.rollback();
-    }
-
-    // Reset fetching status on error
-    if (user) {
-      await user.update({ is_fetching: false });
-    }
-
     console.error(`Job failed for ${username}:`, error);
     throw error;
   }
