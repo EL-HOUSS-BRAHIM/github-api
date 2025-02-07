@@ -298,58 +298,76 @@ function chunk(array, size) {
   return chunks;
 }
 
+// Add cache for commit counts
+const commitCountCache = new Map();
+
 // Add this new function to get commit count
 async function getRepoCommitCount(username, repoName) {
+  const cacheKey = `${username}/${repoName}`;
+  
+  if (commitCountCache.has(cacheKey)) {
+    return commitCountCache.get(cacheKey);
+  }
+
   try {
-    // First try the commits endpoint
     const response = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
       params: {
-        per_page: 1,
-        page: 1
+        per_page: 1
       }
     });
 
+    let count = 0;
+    
     // Get total from Link header
     const link = response.headers.link;
     if (link) {
       const match = link.match(/page=(\d+)>; rel="last"/);
       if (match) {
-        return parseInt(match[1], 10);
+        count = parseInt(match[1], 10);
+        commitCountCache.set(cacheKey, count);
+        return count;
       }
     }
 
-    // If no Link header, try counting manually (up to a limit)
-    let count = 0;
-    let page = 1;
-    const PER_PAGE = 100;
-    const MAX_PAGES = 10; // Limit to 1000 commits
-
-    while (page <= MAX_PAGES) {
-      const pageResponse = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
-        params: {
-          per_page: PER_PAGE,
-          page: page
-        }
-      });
-
-      const commits = pageResponse.data;
-      count += commits.length;
-
-      if (commits.length < PER_PAGE) {
-        break;
-      }
-
-      page++;
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
+    // Manual count if no Link header
+    count = await countCommitsManually(username, repoName);
+    commitCountCache.set(cacheKey, count);
     return count;
 
   } catch (error) {
-    console.warn(`Error fetching commit count for ${username}/${repoName}:`, error.message);
+    console.warn(`Error fetching commit count for ${cacheKey}:`, error.message);
     return 0;
   }
+}
+
+// Add helper for manual commit counting
+async function countCommitsManually(username, repoName) {
+  let count = 0;
+  let page = 1;
+  const PER_PAGE = 100;
+  
+  while (true) {
+    try {
+      const response = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
+        params: {
+          per_page: PER_PAGE,
+          page
+        }
+      });
+
+      const commits = response.data;
+      count += commits.length;
+
+      if (commits.length < PER_PAGE) break;
+      page++;
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      break;
+    }
+  }
+
+  return count;
 }
 
 // Update processUserRepos function
@@ -394,6 +412,91 @@ async function processUserRepos(username, repos) {
   }
 
   return processedRepos;
+}
+
+// Update getUserRepos with better pagination and deduplication
+async function getUserRepos(req, res, next) {
+  const { username } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const per_page = parseInt(req.query.per_page) || 10;
+
+  if (!validateUsername(username)) {
+    return next(new APIError(400, 'Invalid username format'));
+  }
+
+  try {
+    // Cache key includes sort parameters
+    const cacheKey = `user:${username}:repos:${page}:${per_page}`;
+    const cachedRepos = await redisClient.get(cacheKey);
+    
+    if (cachedRepos) {
+      return res.json(JSON.parse(cachedRepos));
+    }
+
+    const user = await User.findOne({
+      where: { username },
+      include: [{
+        model: Repository,
+        attributes: [
+          'name',
+          'description',
+          'stars',
+          'forks', 
+          'issues',
+          'last_commit',
+          'commit_count',
+          'pull_request_count',
+          'topics'
+        ],
+        // Add ordering to prevent duplicates
+        order: [
+          ['stars', 'DESC'],
+          ['name', 'ASC']
+        ]
+      }]
+    });
+
+    if (!user) {
+      return next(new APIError(404, 'User not found'));
+    }
+
+    // Get total count
+    const total = await Repository.count({
+      where: { user_id: user.id }
+    });
+
+    // Calculate pagination
+    const offset = (page - 1) * per_page;
+    const repos = user.Repositories
+      .slice(offset, offset + per_page)
+      .map(repo => ({
+        name: repo.name,
+        description: repo.description,
+        stars: repo.stars,
+        forks: repo.forks,
+        issues: repo.issues,
+        last_commit: repo.last_commit,
+        commit_count: repo.commit_count,
+        pull_request_count: repo.pull_request_count,
+        topics: repo.topics || []
+      }));
+
+    const response = {
+      total_count: total,
+      page,
+      per_page,
+      repos
+    };
+
+    // Cache for 1 hour
+    await redisClient.set(cacheKey, JSON.stringify(response), 'EX', 3600);
+
+    return res.json(response);
+
+  } catch (error) {
+    console.error('Error fetching repositories:', error);
+    return next(error);
+  }
 }
 
 module.exports = {
