@@ -52,10 +52,10 @@ harvesterQueue.process(5, async (job) => {
     // 1. Fetch Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
-    
+
     job.progress(30);
     const userRepos = await githubService.getUserRepos(username);
-    
+
     job.progress(40);
     const userActivity = await processUserActivity(username);
 
@@ -101,7 +101,7 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
 
     // Update database
     await saveToDatabase(processedUser, processedRepos, userActivity);
-    
+
     job.progress(100);
     console.log(`Refresh completed for user ${username}`);
 
@@ -141,11 +141,11 @@ async function saveToDatabase(userData, repoData, activityData) {
     }
 
     // Replace activities
-    await Activity.destroy({ 
+    await Activity.destroy({
       where: { user_id: user.id },
       transaction
     });
-    
+
     if (activityData.length > 0) {
       await Activity.bulkCreate(
         activityData.map(activity => ({ ...activity, user_id: user.id })),
@@ -195,7 +195,7 @@ function processUserRepos(repos) {
     forks: repo.forks_count,
     issues: repo.open_issues_count,
     last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
-    commit_count: 0, 
+    commit_count: 0,
     pull_request_count: 0,
   }));
 }
