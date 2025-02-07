@@ -244,7 +244,7 @@ function extractSocialAccounts(bio, blog, socialUrls = []) {
     twitter: [
       /twitter\.com\/([^\/\s]+)/i,
       /x\.com\/([^\/\s]+)/i,
-      /@([a-zA-Z0-9_]+)/ // Twitter handle pattern
+      /@([a-zA-Z0-9_]+)/i
     ],
     facebook: [
       /facebook\.com\/([^\/\s]+)/i,
@@ -323,6 +323,13 @@ function extractSocialAccounts(bio, blog, socialUrls = []) {
     if (blog.includes('medium.com')) social.medium = cleanUsername(blog);
     if (blog.includes('dev.to')) social.dev = cleanUsername(blog);
   }
+
+  // Ensure empty strings are converted to null
+  Object.keys(social).forEach(key => {
+    if (social[key] === "") {
+      social[key] = null;
+    }
+  });
 
   return social;
 }
