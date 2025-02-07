@@ -25,8 +25,8 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
 
-    // Sync models with the database
-    await sequelize.sync({ force: false });
+    // Sync models with alter option to safely update tables
+    await sequelize.sync({ alter: true });
 
     server.listen(config.port, () => {
       console.log(`Server listening on port ${config.port}`);
