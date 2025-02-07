@@ -3,14 +3,14 @@ const config = require('../config/config.json');
 
 function normalizeLocation(location) {
   if (!location) return null;
-  
+
   const normalizedLocation = location.trim().toLowerCase();
-  
+
   // Check for country match
   const countryMatch = config.locations.find(c => {
     const countryName = c.country.toLowerCase();
     const geoName = c.geoName.toLowerCase();
-    
+
     // Check variations of the location
     return normalizedLocation === countryName ||
            normalizedLocation === geoName ||
