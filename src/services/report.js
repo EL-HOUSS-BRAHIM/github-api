@@ -39,12 +39,12 @@ async function generateReport(user) {
   user.Activities.forEach(activity => {
     // Convert activity to plain object if it's a Sequelize instance
     const activityData = activity.toJSON ? activity.toJSON() : activity;
-    
+
     // Handle date conversion
-    const activityDate = activityData.date instanceof Date ? 
-      activityData.date : 
+    const activityDate = activityData.date instanceof Date ?
+      activityData.date :
       new Date(activityData.date);
-      
+
     if (!isNaN(activityDate.getTime())) {
       const date = activityDate.toISOString().slice(0, 10);
       const month = date.slice(0, 7);
@@ -139,7 +139,7 @@ function calculateTrophies(user) {
 
 function calculateAchievements(user) {
   const achievements = [];
-  
+
   // Calculate total stats across all repos
   const totalStats = user.Repositories.reduce((acc, repo) => ({
     forks: acc.forks + (repo.forks || 0),
@@ -171,10 +171,10 @@ function calculateCountryRanking(user) {
 
   // Extract country from location (basic implementation)
   const location = user.location.trim().toLowerCase();
-  
+
   // Calculate score based on various metrics
-  const score = (user.followers * 2) + 
-                (user.public_repos * 5) + 
+  const score = (user.followers * 2) +
+                (user.public_repos * 5) +
                 (user.Repositories.reduce((sum, repo) => sum + (repo.stars || 0), 0));
 
   // Mock ranking calculation
