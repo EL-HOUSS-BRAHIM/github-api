@@ -1,8 +1,9 @@
 const Queue = require('bull');
 const config = require('../config');
-const sequelize = require('../config/database'); // Add this import
+const sequelize = require('../config/database');
 const { User, Repository, Activity } = require('../models');
 const githubService = require('../services/github');
+const redisClient = require('../config/redis'); // Add this import
 
 const harvesterQueue = new Queue('githubHarvester', {
   redis: {
@@ -114,14 +115,26 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
     const userProfile = await githubService.getUserProfile(username);
     job.progress(30);
 
-    // Use the service function directly
+    // Get organizations and gists
+    const [orgs, gists] = await Promise.all([
+      githubService.getUserOrganizations(username),
+      githubService.getUserGists(username)
+    ]);
+
     const userRepos = await githubService.getUserRepos(username);
     job.progress(50);
 
     const userActivity = await processUserActivity(username);
     job.progress(70);
 
-    const processedUser = processUserProfile(userProfile);
+    const processedUser = {
+      ...processUserProfile(userProfile),
+      organizations: orgs,
+      gists_count: gists.length,
+      last_gist_fetch: new Date(),
+      last_org_fetch: new Date()
+    };
+
     const processedRepos = await githubService.processUserRepos(username, userRepos);
 
     await saveToDatabase(processedUser, processedRepos, userActivity);
@@ -144,16 +157,24 @@ async function saveToDatabase(userData, repoData, activityData) {
     // Start transaction
     transaction = await sequelize.transaction();
 
+    // Ensure social data is included
+    const userDataWithDefaults = {
+      ...userData,
+      social: userData.social || {},
+      is_fetching: false,
+      last_fetched: new Date()
+    };
+
     // Find or create user
     const [user, created] = await User.findOrCreate({
       where: { username: userData.username },
-      defaults: userData,
+      defaults: userDataWithDefaults,
       transaction
     });
 
     // Update if user exists
     if (!created) {
-      await user.update(userData, { transaction });
+      await user.update(userDataWithDefaults, { transaction });
     }
 
     // Upsert repositories
@@ -180,8 +201,11 @@ async function saveToDatabase(userData, repoData, activityData) {
     // Commit transaction
     await transaction.commit();
 
+    // Clear cache after successful update
+    await redisClient.del(`user:${userData.username}:profile`);
+    await redisClient.del(`user:${userData.username}:repos:*`);
+
   } catch (error) {
-    // Rollback transaction on error
     if (transaction) await transaction.rollback();
     console.error('Error saving to database:', error);
     throw error;
@@ -249,7 +273,21 @@ function extractSocialAccounts(bio, blog) {
 }
 
 function processUserProfile(data) {
-  const social = extractSocialAccounts(data.bio, data.blog);
+  // First check for twitter_username from GitHub API
+  const social = {
+    twitter: data.twitter_username || null
+  };
+
+  // Then extract additional social accounts from bio and blog
+  const extractedSocial = extractSocialAccounts(data.bio, data.blog);
+
+  // Merge the social accounts, preferring the GitHub API data
+  const mergedSocial = {
+    ...extractedSocial,
+    ...social,
+    // Only keep twitter from social if it exists
+    twitter: social.twitter || extractedSocial.twitter
+  };
 
   return {
     username: data.login,
@@ -262,7 +300,7 @@ function processUserProfile(data) {
     followers: data.followers,
     following: data.following,
     public_repos: data.public_repos,
-    social: social,
+    social: mergedSocial,
   };
 }
 
