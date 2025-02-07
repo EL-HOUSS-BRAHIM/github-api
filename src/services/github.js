@@ -141,7 +141,7 @@ async function searchUsersByLocation(location) {
     for (const query of searchQueries) {
       let page = 1;
 
-      while (page <= MAX_PGES) {
+      while (page <= MAX_PAGES) {
         try {
           console.log(`Making location query: ${query}, page: ${page}`);
 
@@ -304,7 +304,7 @@ const commitCountCache = new Map();
 // Add this new function to get commit count
 async function getRepoCommitCount(username, repoName) {
   const cacheKey = `${username}/${repoName}`;
-  
+
   if (commitCountCache.has(cacheKey)) {
     return commitCountCache.get(cacheKey);
   }
@@ -317,7 +317,7 @@ async function getRepoCommitCount(username, repoName) {
     });
 
     let count = 0;
-    
+
     // Get total from Link header
     const link = response.headers.link;
     if (link) {
@@ -345,7 +345,7 @@ async function countCommitsManually(username, repoName) {
   let count = 0;
   let page = 1;
   const PER_PAGE = 100;
-  
+
   while (true) {
     try {
       const response = await githubApi.get(`/repos/${username}/${repoName}/commits`, {
@@ -360,7 +360,7 @@ async function countCommitsManually(username, repoName) {
 
       if (commits.length < PER_PAGE) break;
       page++;
-      
+
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       break;
@@ -440,7 +440,7 @@ async function getUserOrganizations(username) {
         per_page: 100
       }
     });
-    
+
     return response.data.map(org => ({
       id: org.id,
       login: org.login,
@@ -460,7 +460,7 @@ async function getUserGists(username) {
         per_page: 100
       }
     });
-    
+
     return response.data.map(gist => ({
       id: gist.id,
       description: gist.description,
@@ -474,6 +474,28 @@ async function getUserGists(username) {
   }
 }
 
+async function getUserSocialAccounts(username) {
+  try {
+    const response = await githubApi.get(`/users/${username}/social_accounts`, {
+      headers: {
+        Accept: 'application/vnd.github+json'
+      }
+    });
+    const accounts = response.data;
+    const social = {};
+    accounts.forEach(account => {
+      // Extract username from the URL (assumes format like https://twitter.com/username)
+      const parts = account.url.split('/');
+      const extracted = parts[parts.length - 1];
+      social[account.provider] = extracted;
+    });
+    return social;
+  } catch (error) {
+    console.error(`Error fetching social accounts for ${username}:`, error.message);
+    return {};
+  }
+}
+
 module.exports = {
   getUserProfile,
   getUserRepos,
@@ -482,5 +504,6 @@ module.exports = {
   getRepoCommitCount,
   getUserOrganizations,
   getUserGists,
-  processUserRepos
+  processUserRepos,
+  getUserSocialAccounts  // <-- add this export
 };
