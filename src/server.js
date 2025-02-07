@@ -20,7 +20,7 @@ async function startServer() {
       console.warn('Queue cleanup warning:', queueError);
       // Continue startup even if queue cleanup fails
     }
-    
+
     // Test database connection
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
