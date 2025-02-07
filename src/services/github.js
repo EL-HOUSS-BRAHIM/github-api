@@ -431,11 +431,56 @@ async function getUserRepos(username, page = 1, perPage = 100) {
   }
 }
 
+// Add these new functions after the existing ones
+
+async function getUserOrganizations(username) {
+  try {
+    const response = await githubApi.get(`/users/${username}/orgs`, {
+      params: {
+        per_page: 100
+      }
+    });
+    
+    return response.data.map(org => ({
+      id: org.id,
+      login: org.login,
+      avatar_url: org.avatar_url,
+      description: org.description
+    }));
+  } catch (error) {
+    console.error(`Error fetching organizations for ${username}:`, error.message);
+    return [];
+  }
+}
+
+async function getUserGists(username) {
+  try {
+    const response = await githubApi.get(`/users/${username}/gists`, {
+      params: {
+        per_page: 100
+      }
+    });
+    
+    return response.data.map(gist => ({
+      id: gist.id,
+      description: gist.description,
+      created_at: gist.created_at,
+      updated_at: gist.updated_at,
+      files: Object.keys(gist.files)
+    }));
+  } catch (error) {
+    console.error(`Error fetching gists for ${username}:`, error.message);
+    return [];
+  }
+}
+
 module.exports = {
   getUserProfile,
   getUserRepos,
   getUserActivity,
   searchUsersByLocation,
   getRepoCommitCount,
+  getUserOrganizations,
+  getUserGists,
   processUserRepos
 };
