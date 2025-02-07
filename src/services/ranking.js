@@ -1,3 +1,4 @@
+// src/services/ranking.js
 const { User, UserRanking, Activity, Repository } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
@@ -6,10 +7,10 @@ const { normalizeLocation } = require('../utils/helpers'); // Add this import
 class RankingService {
   async calculateUserScore(user) {
     const baseScore = (user.followers * 2) + (user.public_repos * 5);
-    
-    const repoScore = user.Repositories.reduce((sum, repo) => 
+
+    const repoScore = user.Repositories.reduce((sum, repo) =>
       sum + (repo.stars || 0) + (repo.forks * 2), 0);
-    
+
     const activityScore = await Activity.sum('commits', {
       where: {
         user_id: user.id,
@@ -103,7 +104,7 @@ class RankingService {
       });
 
       // Check if we need to update
-      const shouldUpdate = !ranking || 
+      const shouldUpdate = !ranking ||
                           this.shouldUpdateRanking(ranking, user) ||
                           ranking.country !== normalizedLocation;
 
@@ -153,16 +154,16 @@ class RankingService {
   // Add helper method to check if update is needed
   shouldUpdateRanking(ranking, user) {
     const hoursSinceLastUpdate = (Date.now() - ranking.last_calculated_at) / (1000 * 60 * 60);
-    
+
     // Always update if last update was more than 24 hours ago
     if (hoursSinceLastUpdate >= 24) return true;
-    
+
     // Check if basic stats have changed
     if (user.followers !== ranking.followers ||
         user.public_repos !== ranking.public_repos) {
       return true;
     }
-    
+
     return false;
   }
 
