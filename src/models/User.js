@@ -56,7 +56,41 @@ const User = sequelize.define('User', {
     allowNull: true,
     defaultValue: {},
   },
-  // Consider adding a last_fetched or similar timestamp to track data freshness
+  last_fetched: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    get() {
+      const value = this.getDataValue('last_fetched');
+      return value instanceof Date ? value : new Date(value);
+    }
+  },
+  last_activity_fetch: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  is_fetching: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  organizations: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
+  },
+  gists_count: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  last_gist_fetch: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  last_org_fetch: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
 });
 
 module.exports = User;
