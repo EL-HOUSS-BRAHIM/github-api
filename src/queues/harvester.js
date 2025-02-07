@@ -56,7 +56,7 @@ harvesterQueue.process(5, async (job) => {
     // 1. Fetch Complete Profile Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
-    console.log(userProfile);
+    console.log(userProfile); // Add this line
 
     // 2. Fetch Extra Profile Data (optional fields)
     job.progress(20);
@@ -204,8 +204,8 @@ function processUserProfile(data) {
     public_repos: data.public_repos,
     social: {
       twitter: data.twitter_username,
-      linkedin: data.linkedin,
-      youtube: data.youtube,
+      linkedin: data.linkedin_url, // Update this line
+      youtube: data.youtube_url, // Update this line
       mastodon: data.mastodon,
       discord: data.discord,
       facebook: data.facebook_username,
