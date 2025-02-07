@@ -111,7 +111,7 @@ async function getUserActivity(username, page = 1, perPage = 100) {
         per_page: perPage,
       }
     });
-    
+
     return response.data;
   } catch (error) {
     if (error.response?.status === 422) {
@@ -140,11 +140,11 @@ async function searchUsersByLocation(location) {
 
     for (const query of searchQueries) {
       let page = 1;
-      
-      while (page <= MAX_PAGES) {
+
+      while (page <= MAX_PGES) {
         try {
           console.log(`Making location query: ${query}, page: ${page}`);
-          
+
           const results = await githubApi.get('/search/users', {
             params: {
               q: `${query} followers:>31`,
@@ -197,7 +197,7 @@ async function searchUsersByLocation(location) {
 
     const uniqueItems = Array.from(allItems.values());
     console.log(`Total unique users found: ${uniqueItems.length}`);
-    
+
     return {
       total_count: uniqueItems.length,
       items: uniqueItems,
@@ -214,13 +214,13 @@ async function searchUsersByLocation(location) {
 function findCountryConfig(searchLocation) {
   const locations = configJson.locations;
   const search = searchLocation.toLowerCase().trim();
-  
+
   // Direct match
-  let countryConfig = locations.find(c => 
+  let countryConfig = locations.find(c =>
     c.country.toLowerCase() === search ||
     c.geoName.toLowerCase() === search
   );
-  
+
   if (countryConfig) return countryConfig;
 
   // Check variations
@@ -255,14 +255,14 @@ function buildLocationQueries(countryConfig) {
   // Add fuzzy matching variations
   queries.add(`location:*${countryConfig.geoName}*`);
   queries.add(`location:*${countryConfig.country}*`);
-  
+
   return Array.from(queries);
 }
 
 // Helper function to get common country name variations
 function getCountryVariations(countryName) {
   const variations = new Set([countryName]);
-  
+
   // Common country name mappings
   const countryMappings = {
     'morocco': ['MA', 'maroc', 'maghreb', 'marocco', 'marruecos', 'المغرب', 'مراكش', 'MOROCCO'],
@@ -355,17 +355,17 @@ async function getRepoCommitCount(username, repoName) {
 // Update processUserRepos function
 async function processUserRepos(username, repos) {
   const processedRepos = [];
-  
+
   for (const repo of repos) {
     try {
       console.log(`Fetching commit count for ${username}/${repo.name}...`);
-      
+
       // Add delay between requests
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const commitCount = await getRepoCommitCount(username, repo.name);
       console.log(`Got ${commitCount} commits for ${repo.name}`);
-      
+
       processedRepos.push({
         name: repo.name,
         description: repo.description,
@@ -392,7 +392,7 @@ async function processUserRepos(username, repos) {
       });
     }
   }
-  
+
   return processedRepos;
 }
 
