@@ -69,6 +69,7 @@ harvesterQueue.process(5, async (job) => {
     // 1. Fetch Complete Profile Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
+    console.log(userProfile);
 
     // 2. Fetch Extra Profile Data (optional fields)
     job.progress(20);
