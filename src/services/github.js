@@ -270,7 +270,7 @@ function getCountryVariations(countryName) {
     'united kingdom': ['uk', 'u.k', 'great britain', 'england'],
     'united arab emirates': ['uae', 'u.a.e', 'emirates'],
     'south korea': ['korea'],
-    'russia': ['russian federation'],
+    'russia': ['российская федерация', 'rossiya', 'russian federation'],
     'china': ['prc', 'peoples republic of china'],
     'france': ['république française', 'republique francaise'],
     'germany': ['deutschland'],
@@ -616,5 +616,5 @@ module.exports = {
   getUserOrganizations,
   getUserGists,
   processUserRepos,
-  getUserSocialAccounts  // <-- add this export
+  getUserSocialAccounts
 };
