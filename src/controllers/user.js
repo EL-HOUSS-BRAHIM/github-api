@@ -11,67 +11,60 @@ const redisClient = require('../config/redis');
  */
 async function getUserProfile(req, res, next) {
   const { username } = req.params;
-  console.log('Fetching profile for username:', username);
-
-  if (!validateUsername(username)) {
-    return next(new APIError(400, 'Invalid username format'));
-  }
+  const FETCH_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
   try {
-    // 1. Check Cache
-    console.log('Checking Redis cache...');
-    const cachedProfile = await redisClient.get(`user:${username}:profile`);
-    if (cachedProfile) {
-      console.log('Cache hit - returning cached profile');
-      return res.json(JSON.parse(cachedProfile));
-    }
-    console.log('Cache miss');
-
-    // 2. Check Database
-    console.log('Checking database...');
+    // Find user in database
     const user = await User.findOne({ where: { username } });
-    if (!user) {
-      console.log('User not found in database, queueing harvest job');
-      // 3. Check if there's already a job in the queue
-      const existingJobs = await harvesterQueue.getJobs(['active', 'waiting']);
-      const isQueued = existingJobs.some(job => job.data.username === username);
-
-      if (!isQueued) {
-        console.log('Adding harvest job to queue');
-        await harvesterQueue.add({ username }, {
-          jobId: `harvest-${username}`,
-          removeOnComplete: true
+    
+    // Check if user exists and data is fresh
+    if (user && !user.is_fetching) {
+      // Convert last_fetched to Date object if it isn't already  
+      const lastFetchedDate = user.last_fetched instanceof Date 
+        ? user.last_fetched 
+        : new Date(user.last_fetched);
+      
+      const timeSinceLastFetch = Date.now() - lastFetchedDate.getTime();
+      
+      // Return cached data if fresh
+      if (timeSinceLastFetch < FETCH_THRESHOLD) {
+        return res.json({
+          ...user.toJSON(),
+          data_age: timeSinceLastFetch,
+          is_fresh: true,
+          last_fetched: lastFetchedDate.toISOString()
         });
       }
+    }
 
-      return res.status(202).json({
-        status: 'pending',
-        message: 'User data is being fetched. Please try again in a few moments.',
-        retryAfter: 5,
-        username
+    // Queue refresh if data is stale or user not found
+    const existingJobs = await harvesterQueue.getJobs(['active', 'waiting']);
+    const isQueued = existingJobs.some(job => job.data.username === username);
+
+    if (!isQueued) {
+      await harvesterQueue.add({ username }, {
+        jobId: `harvest-${username}`,
+        removeOnComplete: true
       });
     }
 
-    console.log('User found in database');
-    // Format profile response
-    const profile = {
-      username: user.username,
-      full_name: user.full_name,
-      avatar_url: user.avatar_url,
-      bio: user.bio,
-      location: user.location,
-      company: user.company,
-      website: user.website,
-      followers: user.followers,
-      following: user.following,
-      public_repos: user.public_repos,
-      social: user.social,
-    };
+    // Return stale data with refresh status if available
+    if (user) {
+      return res.json({
+        ...user.toJSON(),
+        is_fresh: false,
+        is_refreshing: true,
+        refresh_queued: true
+      });
+    }
 
-    // Cache the result
-    await redisClient.set(`user:${username}:profile`, JSON.stringify(profile), 'EX', 3600);
+    return res.status(202).json({
+      status: 'pending',
+      message: 'User data is being fetched. Please try again in a few moments.',
+      retryAfter: 5,
+      username
+    });
 
-    return res.json(profile);
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     return next(error);
