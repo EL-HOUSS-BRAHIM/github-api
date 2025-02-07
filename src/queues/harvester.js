@@ -57,6 +57,7 @@ harvesterQueue.process(5, async (job) => {
     // 1. Fetch Complete Profile Data
     job.progress(10);
     const userProfile = await githubService.getUserProfile(username);
+    const socialAccounts = await githubService.getUserSocialAccounts(username);
     console.log(userProfile);
 
     // 2. Fetch Extra Profile Data (optional fields)
@@ -76,8 +77,11 @@ harvesterQueue.process(5, async (job) => {
 
     // 5. Process All Data
     job.progress(60);
+    const profileData = processUserProfile(userProfile);
+    profileData.social = { ...profileData.social, ...socialAccounts };
+
     const processedUserData = {
-      ...processUserProfile(userProfile),
+      ...profileData,
       organizations: extraData[0],
       gists_count: extraData[1].length,
       last_fetched: new Date(),
@@ -113,7 +117,12 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
     console.log(`Starting refresh for user ${username}`);
 
     const userProfile = await githubService.getUserProfile(username);
+    const socialAccounts = await githubService.getUserSocialAccounts(username);
     job.progress(30);
+    console.log(userProfile);
+
+    const profileData = processUserProfile(userProfile);
+    profileData.social = { ...profileData.social, ...socialAccounts };
 
     // Get organizations and gists
     const [orgs, gists] = await Promise.all([
@@ -128,7 +137,7 @@ harvesterQueue.process('refresh-user', 5, async (job) => {
     job.progress(70);
 
     const processedUser = {
-      ...processUserProfile(userProfile),
+      ...profileData,
       organizations: orgs,
       gists_count: gists.length,
       last_gist_fetch: new Date(),
@@ -214,96 +223,152 @@ async function saveToDatabase(userData, repoData, activityData) {
 
 // Helper functions to process data into the format you need for your database
 
-function extractSocialAccounts(bio, blog) {
+function extractSocialAccounts(bio, blog, socialUrls = []) {
   const social = {};
 
+  // Helper to clean extracted username
+  const cleanUsername = (str) => {
+    if (!str) return null;
+    return str.replace(/\/$/, '')
+              .split('/').pop()
+              .split('?')[0]
+              .replace(/^@/, ''); // Remove leading '@'
+  };
+
+  // Common social media patterns
   const patterns = {
-      twitter: /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com\/|x\.com\/)([a-zA-Z0-9_]+)|@([a-zA-Z0-9_]+)/i,
-      linkedin: /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|profile)\/([a-zA-Z0-9_-]+)/i,
-      youtube: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:c\/|channel\/|user\/)?|youtu\.be\/)([a-zA-Z0-9_-]+)/i,
-      mastodon: /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9_-]+\.social)\/@([a-zA-Z0-9_]+)/i,
-      discord: /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discordapp\.com\/invite\/|discord\.com\/invite\/)([a-zA-Z0-9_-]+)/i,
-      facebook: /(?:https?:\/\/)?(?:www\.)?(?:facebook\.com|fb\.me)\/([a-zA-Z0-9_.]+)/i,
-      instagram: /(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([a-zA-Z0-9_\.]+)\/?/i,
-      twitch: /(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)/i,
-      github: /(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)/i,
-      medium: /(?:https?:\/\/)?(?:www\.)?medium\.com\/@([a-zA-Z0-9_.-]+)/i,
-      dev: /(?:https?:\/\/)?(?:www\.)?dev\.to\/([a-zA-Z0-9_-]+)/i,
-      stackoverflow: /(?:https?:\/\/)?(?:www\.)?stackoverflow\.com\/users\/[0-9]+\/([a-zA-Z0-9_-]+)/i,
-      telegram: /(?:https?:\/\/)?(?:www\.)?t\.me\/([a-zA-Z0-9_]+)/i,
-      gitlab: /(?:https?:\/\/)?(?:www\.)?gitlab\.com\/([a-zA-Z0-9_-]+)/i,
-      behance: /(?:https?:\/\/)?(?:www\.)?behance\.net\/([a-zA-Z0-9_-]+)/i,
-      dribbble: /(?:https?:\/\/)?(?:www\.)?dribbble\.com\/([a-zA-Z0-9_-]+)/i,
-      hashnode: /(?:https?:\/\/)?(?:www\.)?hashnode\.com\/@([a-zA-Z0-9_-]+)/i
+    linkedin: [
+      /linkedin\.com\/in\/([^\/\s]+)/i,
+      /linkedin\.com\/profile\/view\?id=([^\/\s]+)/i
+    ],
+    twitter: [
+      /twitter\.com\/([^\/\s]+)/i,
+      /x\.com\/([^\/\s]+)/i,
+      /@([a-zA-Z0-9_]+)/ // Twitter handle pattern
+    ],
+    facebook: [
+      /facebook\.com\/([^\/\s]+)/i,
+      /fb\.com\/([^\/\s]+)/i
+    ],
+    instagram: [
+      /instagram\.com\/([^\/\s]+)/i,
+      /insta\.gram\.com\/([^\/\s]+)/i
+    ],
+    youtube: [
+      /youtube\.com\/(?:c\/|channel\/|user\/)?([^\/\s@]+)/i,
+      /youtube\.com\/@([^\/\s]+)/i
+    ],
+    github: [
+      /github\.com\/([^\/\s]+)/i
+    ],
+    medium: [
+      /medium\.com\/@([^\/\s]+)/i,
+      /([^\/\s]+)\.medium\.com/i
+    ],
+    dev: [
+      /dev\.to\/([^\/\s]+)/i
+    ],
+    stackoverflow: [
+      /stackoverflow\.com\/users\/([^\/\s]+)/i
+    ],
+    dribbble: [
+      /dribbble\.com\/([^\/\s]+)/i
+    ],
+    behance: [
+      /behance\.net\/([^\/\s]+)/i
+    ]
   };
 
-  const extract = (text, platform) => {
-      if (!text) return;
-      const match = text.match(patterns[platform]);
-      if (match) {
-          // Find first non-null capture group
-          const username = match.slice(1).find(group => group);
-          if (username) {
-              social[platform] = username.toLowerCase();
+  // Process text content for potential social media handles or URLs
+  const processText = (text) => {
+    if (!text) return;
+    console.log('Processing text for social extraction:', text);
+
+    // Extract and process URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = text.match(urlRegex) || [];
+    urls.forEach((url) => {
+      Object.entries(patterns).forEach(([platform, regexList]) => {
+        regexList.forEach((regex) => {
+          const match = url.match(regex);
+          if (match) {
+            const extracted = cleanUsername(match[match.length - 1]);
+            console.log(`Found ${platform}: ${extracted} from URL: ${url}`);
+            social[platform] = extracted;
           }
-      }
+        });
+      });
+    });
+
+    // Also check plain text for patterns (e.g., @username)
+    Object.entries(patterns).forEach(([platform, regexList]) => {
+      regexList.forEach((regex) => {
+        const match = text.match(regex);
+        if (match && !social[platform]) {
+          const extracted = cleanUsername(match[match.length - 1]);
+          console.log(`Found ${platform}: ${extracted} in text`);
+          social[platform] = extracted;
+        }
+      });
+    });
   };
 
-  // Extract from both bio and blog
-  [bio, blog].forEach(text => {
-      if (text) {
-          Object.keys(patterns).forEach(platform => {
-              if (!social[platform]) { // Only extract if not already found
-                  extract(text, platform);
-              }
-          });
-      }
-  });
+  // Process all provided sources: bio, blog, and additional URLs
+  [bio, blog, ...socialUrls].filter(Boolean).forEach(processText);
 
-  // Clean up the social object by removing null/undefined values
-  Object.keys(social).forEach(key => {
-      if (!social[key]) {
-          delete social[key];
-      }
-  });
+  // Additional override for blog field
+  if (blog) {
+    if (blog.includes('linkedin.com')) social.linkedin = cleanUsername(blog);
+    if (blog.includes('twitter.com') || blog.includes('x.com')) social.twitter = cleanUsername(blog);
+    if (blog.includes('medium.com')) social.medium = cleanUsername(blog);
+    if (blog.includes('dev.to')) social.dev = cleanUsername(blog);
+  }
 
   return social;
 }
 
 function processUserProfile(data) {
-  // First get social accounts from GitHub API
+  // Get social info from GitHub API
   const social = {
-      twitter: data.twitter_username || null,
-      instagram: data.instagram_username || null,
-      github: data.login || null,
+    twitter: data.twitter_username || null,
+    github: data.login || null
   };
 
-  // Extract additional social accounts from bio and blog
-  const extractedSocial = extractSocialAccounts(data.bio, data.blog);
+  // Extract social accounts from bio, blog and any additional URLs
+  const extractedSocial = extractSocialAccounts(
+    data.bio || '', 
+    data.blog || '',
+    [data.html_url]  // Add GitHub profile URL
+  );
 
-  // Merge the social accounts, preferring the GitHub API data
+  // Merge, preferring GitHub API data for Twitter
   const mergedSocial = {
-      ...extractedSocial,
-      ...social,
-      // Only keep values from social object that exist
-      ...Object.fromEntries(
-          Object.entries(social)
-              .filter(([_, value]) => value !== null)
-      )
+    ...extractedSocial,
+    twitter: social.twitter || extractedSocial.twitter,
+    github: social.github || extractedSocial.github,
+    linkedin: extractedSocial.linkedin || null,
+    facebook: extractedSocial.facebook || null,
+    instagram: extractedSocial.instagram || null,
+    youtube: extractedSocial.youtube || null,
+    medium: extractedSocial.medium || null,
+    dev: extractedSocial.dev || null,
+    stackoverflow: extractedSocial.stackoverflow || null,
+    dribbble: extractedSocial.dribbble || null,
+    behance: extractedSocial.behance || null
   };
 
   return {
-      username: data.login,
-      full_name: data.name,
-      avatar_url: data.avatar_url,
-      bio: data.bio,
-      location: data.location,
-      company: data.company,
-      website: data.blog,
-      followers: data.followers,
-      following: data.following,
-      public_repos: data.public_repos,
-      social: mergedSocial,
+    username: data.login,
+    full_name: data.name,
+    avatar_url: data.avatar_url,
+    bio: data.bio,
+    location: data.location,
+    company: data.company,
+    website: data.blog,
+    followers: data.followers,
+    following: data.following,
+    public_repos: data.public_repos,
+    social: mergedSocial,
   };
 }
 
