@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: github-api-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=github_user
+      - DB_PASSWORD=github_password
+      - DB_NAME=github_data
+      - GITHUB_TOKEN=${GITHUB_TOKEN} # Use environment variable from your host
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - github-network
+
+  db:
+    image: mysql:8.0
+    container_name: github-api-db
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=github_data
+      - MYSQL_USER=github_user
+      - MYSQL_PASSWORD=github_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - github-network
+
+  redis:
+    image: redis:alpine
+    container_name: github-api-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - github-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  github-network:
+    driver: bridge
