@@ -3,8 +3,8 @@
 A robust backend API service for collecting, processing, and serving GitHub user data with location-based rankings and analytics.
 
 ## Last Update
-    06/02/2025
-    adding user info refresh endpoints and futures
+    09/02/2025
+    updating all files, fixing some bugs, restracture the repo to add the frontend, editing and fixing the frontend.
 ## Features
 
 - **User Data Collection**
