@@ -3,7 +3,9 @@ node_modules/
 package-lock.json
 yarn.lock
 ./node_modules/
-
+index.html
+script.js
+style.css
 # Environment variables
 .env
 ./.env
