@@ -3,13 +3,19 @@ import { Link } from 'react-router-dom';
 
 function Header() {
   return (
-    <header>
-      <h1>GitHub API Frontend</h1>
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-      </nav>
-    </header>
+    <nav className="navbar">
+      <div className="nav-container">
+        <Link to="/" className="nav-logo">
+          <i className="fab fa-github"></i> GitHub Analyzer
+        </Link>
+        <ul className="nav-menu">
+          <li className="nav-item"><Link to="/" className="nav-link">Home</Link></li>
+          <li className="nav-item"><Link to="/rankings" className="nav-link">Rankings</Link></li>
+          <li className="nav-item"><Link to="/reports" className="nav-link">Reports</Link></li>
+          <li className="nav-item"><Link to="/about" className="nav-link">About</Link></li>
+        </ul>
+      </div>
+    </nav>
   );
 }
 
