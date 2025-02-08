@@ -1,0 +1,83 @@
+{
+    "swagger": "2.0",
+    "info": {
+      "version": "1.0.0",
+      "title": "GitHub API",
+      "description": "API documentation for the GitHub data aggregation service"
+    },
+    "host": "localhost:3000",
+    "basePath": "/api",
+    "schemes": ["http"],
+    "paths": {
+      "/user/{username}": {
+        "get": {
+          "summary": "Get user profile",
+          "description": "Retrieves the profile of a GitHub user",
+          "parameters": [
+            {
+              "name": "username",
+              "in": "path",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful response",
+              "schema": {
+                "$ref": "#/definitions/UserProfile"
+              }
+            },
+            "404": {
+              "description": "User not found"
+            }
+          }
+        }
+      }
+    },
+    "definitions": {
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "followers": {
+            "type": "integer"
+          },
+          "following": {
+            "type": "integer"
+          },
+          "public_repos": {
+            "type": "integer"
+          },
+          "social": {
+            "type": "object",
+            "properties": {
+              "twitter": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
