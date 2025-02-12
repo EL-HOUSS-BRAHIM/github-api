@@ -1,0 +1,65 @@
+/* ==========================================================================
+  1. Modern Color Palette and Variables
+  ========================================================================== */
+  :root {
+    /* Primary Colors */
+    --primary: #2563eb; /* Main primary color */
+    --primary-dark: #1d4ed8; /* Darker shade for hover/active states */
+    --secondary: #7c3aed; /* Secondary color for accents */
+    --accent: #f59e0b; /* Accent color for highlights */
+  
+    /* Status Colors */
+    --success: #10b981; /* Success state color */
+    --warning: #f97316; /* Warning state color */
+    --error: #ef4444; /* Error state color */
+  
+    /* Background Colors */
+    --bg-dark: #0f172a; /* Dark background color */
+    --bg-card: #1e293b; /* Background color for cards/sections */
+  
+    /* Text Colors */
+    --text-primary: #f8fafc; /* Primary text color */
+    --text-secondary: #94a3b8; /* Secondary text color for less emphasis */
+  
+    /* Border and Shadow */
+    --border-color: rgba(255, 255, 255, 0.1); /* Subtle border color */
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* Shadow for cards */
+  
+    /* Transition */
+    --transition: all 0.3s ease; /* Standard transition for smooth effects */
+  }
+  
+  /* ==========================================================================
+    2. Reset & Base Styles
+    ========================================================================== */
+  /* Box-sizing and Reset */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* Use border-box for intuitive sizing */
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif; /* Consistent font */
+    background: var(--bg-dark); /* Set dark background */
+    color: var(--text-primary); /* Set primary text color */
+    line-height: 1.6; /* Improve readability */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+  }
+  
+  /* ==========================================================================
+    3. Typography
+    ========================================================================== */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  ul {
+    list-style: none;
+  }
