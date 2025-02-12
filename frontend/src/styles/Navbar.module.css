@@ -1,0 +1,50 @@
+
+  /* 5.1 Header Styles */
+  .header {
+    background: var(--bg-card);
+    padding: 1rem 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .nav_container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .logo a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  .logo i {
+    font-size: 1.5rem;
+  }
+  
+  .nav_links {
+    display: flex;
+    gap: 2rem;
+  }
+  
+  .nav_link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition);
+  }
+  
+  .nav_link:hover {
+    color: var(--primary);
+  }
