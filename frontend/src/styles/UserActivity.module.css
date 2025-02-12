@@ -1,0 +1,132 @@
+.github_profile_status,
+.github_profile_ranking,
+.github_profile_repo {
+  background: var(--bg-card);
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: var(--card-shadow);
+}
+
+/* 5.7 Status Grid */
+.status_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.status_item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+/* 5.8 Language List */
+.language_list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.language_item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lang_color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.lang_percent {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+
+/* ==========================================================================
+    Additional Styles
+    ========================================================================== */
+  /* Calendar Heatmap */
+  .contribution_cell:hover {
+    stroke: #ffffff33;
+    stroke-width: 1px;
+  }
+  
+  #activityHeatmap {
+    overflow-x: auto;
+    margin-top: 1rem;
+  }
+  
+  canvas {
+    max-width: 100%;
+    margin: 1rem 0;
+  }
+  
+  /* Languages and Stats */
+  .languages_header, .section_header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .info_tooltip {
+    color: var(--text-secondary);
+    cursor: help;
+    font-size: 0.875rem;
+  }
+  
+  .language_block {
+    margin-bottom: 1rem;
+  }
+  
+  .language_info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .lang_bar_bg {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .lang_bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  
+  .lang_name {
+    flex: 1;
+  }
+  
+  .lang_percent {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+  
+  /* Streak Chart */
+  #streakChart {
+    margin-top: 1.5rem;
+  }
+  
+  .streak_info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  
+  /* Contribution Graph */
+  .contribution_graph {
+    margin-top: 2rem;
+  }
