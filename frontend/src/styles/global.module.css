@@ -1,0 +1,8 @@
+  /* 4.1 Container Layout */
+  .root div, .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding-top: 80px; /* Height of header */
+    padding: 2rem;
+  }
