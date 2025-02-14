@@ -1,5 +1,4 @@
-
-  /* 5.1 Header Styles */
+/* 5.1 Header Styles */
   .header {
     background: var(--bg-card);
     padding: 1rem 0;
@@ -10,7 +9,7 @@
     z-index: 1000;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-  
+
   .nav_container {
     max-width: 1400px;
     margin: 0 auto;
@@ -19,7 +18,7 @@
     justify-content: space-between;
     align-items: center;
   }
-  
+
   .logo a {
     display: flex;
     align-items: center;
@@ -29,22 +28,29 @@
     font-size: 1.25rem;
     font-weight: 600;
   }
-  
+
   .logo i {
     font-size: 1.5rem;
   }
-  
+
   .nav_links {
     display: flex;
     gap: 2rem;
   }
-  
+
   .nav_link {
     color: var(--text-secondary);
     text-decoration: none;
     transition: var(--transition);
   }
-  
+
   .nav_link:hover {
     color: var(--primary);
+  }
+  /* Small devices (landscape phones, less than 768px) */
+  @media (max-width: 768px) {
+    .nav_links {
+      display: none; /* Hide main nav links on smaller screens */
+    }
+    /* Add mobile navigation elements here if needed, e.g., hamburger menu */
   }
