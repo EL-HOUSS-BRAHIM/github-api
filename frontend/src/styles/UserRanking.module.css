@@ -1,132 +1,142 @@
-.github_profile_status,
-.github_profile_ranking,
-.github_profile_repo {
+/* Base styles */
+.github_profile_ranking {
   background: var(--bg-card);
   padding: 2rem;
   border-radius: 1rem;
   box-shadow: var(--card-shadow);
 }
 
-/* 5.7 Status Grid */
-.status_grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.status_item {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1rem;
-  border-radius: 0.5rem;
+.ranking_header {
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
-/* 5.8 Language List */
-.language_list {
+.ranking_header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ranking_list {
   display: grid;
   gap: 1rem;
-  margin-top: 1rem;
 }
 
-.language_item {
+.ranking_item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  transition: var(--transition);
 }
 
-.lang_color {
-  width: 12px;
-  height: 12px;
+.ranking_item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow);
+}
+
+.ranking_number {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary); /* Highlight ranking number */
+  width: 30px; /* Fixed width for number */
+  text-align: center;
+}
+
+.ranking_avatar {
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--primary); /* Avatar border */
 }
 
-.lang_percent {
-  margin-left: auto;
+.ranking_avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ranking_info {
+  flex: 1;
+}
+
+.ranking_username {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.ranking_stats {
   color: var(--text-secondary);
+  font-size: 0.9rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ranking_stat_item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 
 /* ==========================================================================
-    Additional Styles
-    ========================================================================== */
-  /* Calendar Heatmap */
-  .contribution_cell:hover {
-    stroke: #ffffff33;
-    stroke-width: 1px;
+  9. Responsive Design - UserRanking Module Responsive Adjustments
+  ========================================================================== */
+
+/* Small devices (landscape phones, less than 768px) */
+@media (max-width: 768px) {
+  .github_profile_ranking {
+    padding: 1.5rem; /* Reduce padding on smaller screens */
   }
-  
-  #activityHeatmap {
-    overflow-x: auto;
-    margin-top: 1rem;
+
+  .ranking_header h2 {
+    font-size: 1.3rem; /* Slightly smaller header on small screens */
   }
-  
-  canvas {
-    max-width: 100%;
-    margin: 1rem 0;
+
+  .ranking_item {
+    padding: 1rem; /* Reduce item padding */
+    gap: 0.5rem; /* Reduce gap in item */
   }
-  
-  /* Languages and Stats */
-  .languages_header, .section_header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+
+  .ranking_number {
+    font-size: 1rem; /* Smaller ranking number */
+    width: 25px; /* Adjust width for smaller number */
   }
-  
-  .info_tooltip {
-    color: var(--text-secondary);
-    cursor: help;
-    font-size: 0.875rem;
+
+  .ranking_avatar {
+    width: 40px; /* Smaller avatar */
+    height: 40px;
   }
-  
-  .language_block {
-    margin-bottom: 1rem;
+
+  .ranking_username {
+    font-size: 1rem; /* Smaller username */
   }
-  
-  .language_info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
+
+  .ranking_stats {
+    font-size: 0.8rem; /* Smaller stats text */
   }
-  
-  .lang_bar_bg {
-    width: 100%;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    overflow: hidden;
+}
+
+/* Extra small devices (portrait phones, less than 576px) */
+@media (max-width: 576px) {
+  .github_profile_ranking {
+    padding: 1rem; /* Even smaller padding on extra small screens */
   }
-  
-  .lang_bar {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
+
+  .ranking_header h2 {
+    font-size: 1.2rem; /* Even smaller header on extra small screens */
   }
-  
-  .lang_name {
-    flex: 1;
+
+  .ranking_item {
+    flex-direction: column; /* Stack ranking item content vertically on extra small screens */
+    text-align: center; /* Center align text in stacked item */
+    gap: 0.75rem; /* Adjust gap for stacked layout */
   }
-  
-  .lang_percent {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
+
+  .ranking_info, .ranking_stats {
+    text-align: center; /* Center align info and stats when stacked */
   }
-  
-  /* Streak Chart */
-  #streakChart {
-    margin-top: 1.5rem;
-  }
-  
-  .streak_info {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin: 1rem 0;
-  }
-  
-  /* Contribution Graph */
-  .contribution_graph {
-    margin-top: 2rem;
-  }
+}
