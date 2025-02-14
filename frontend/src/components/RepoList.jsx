@@ -45,20 +45,79 @@ function RepoList({ username }) {
   }
 
   return (
-    <div>
-      <ul className={styles.repo_list}>
+    <div className={styles.github_profile_repo}>
+      <div className={styles.repo_header}>
+        <h2>Popular Repositories</h2>
+        <div className={styles.repo_filters}>
+          <select id="repoSort" className={styles.repo_sort_select}>
+            <option value="stars">Most Stars</option>
+            <option value="forks">Most Forks</option>
+            <option value="updated">Recently Updated</option>
+            <option value="created">Newly Created</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={styles.repo_list}>
         {repos.map(repo => (
-          <li key={repo.name} className={styles.repo_card}>
-            <h3>{repo.name}</h3>
-            <p>{repo.description || 'No description'}</p>
-            <p>Stars: {repo.stars} | Forks: {repo.forks} | Issues: {repo.issues}</p>
-            {repo.topics && repo.topics.length > 0 && (
-              <p>Topics: {repo.topics.join(', ')}</p>
-            )}
-            <p>Last Commit: {repo.last_commit ? new Date(repo.last_commit).toLocaleDateString() : 'N/A'}</p>
-          </li>
+          <div key={repo.name} className={styles.repo_item}>
+            <div className={styles.repo_header_info}>
+              <div className={styles.repo_title}>
+                <h3>
+                  <i className="fas fa-bookmark"></i> {repo.name}
+                </h3>
+                <span className={styles.repo_visibility}>Public</span>
+              </div>
+              <p>{repo.description || 'No description'}</p>
+            </div>
+
+            <div className={styles.repo_meta}>
+              <div className={styles.repo_language}>
+                <span className={styles.lang_dot} style={{ background: '#f1e05a' }}></span>
+                {repo.language || 'Unknown'}
+              </div>
+              <div className={styles.repo_stats}>
+                <span className={styles.stars} title="Stars">
+                  <i className="fas fa-star"></i> {repo.stars}
+                </span>
+                <span className={styles.forks} title="Forks">
+                  <i className="fas fa-code-branch"></i> {repo.forks}
+                </span>
+                <span className={styles.issues} title="Open Issues">
+                  <i className="fas fa-exclamation-circle"></i> {repo.issues}
+                </span>
+                <span className={styles.prs} title="Pull Requests">
+                  <i className="fas fa-code-pull-request"></i> {repo.pull_requests}
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.repo_details}>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-clock"></i>
+                Last commit: {repo.last_commit ? new Date(repo.last_commit).toLocaleDateString() : 'N/A'}
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-history"></i>
+                {repo.commits} commits
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-balance-scale"></i>
+                {repo.license || 'No license'}
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-database"></i>
+                {repo.size} MB
+              </div>
+            </div>
+
+            <div className={styles.repo_dates}>
+              <span>Created: {new Date(repo.created_at).toLocaleDateString()}</span>
+              <span>Updated: {new Date(repo.updated_at).toLocaleDateString()}</span>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
 
       <div className={styles.pagination}>
         <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>
