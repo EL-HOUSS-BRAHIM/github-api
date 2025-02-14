@@ -16,6 +16,7 @@ function SearchBar() {
   };
 
   return (
+    
     <div className={styles.search_box}>
       <input
         type="text"
