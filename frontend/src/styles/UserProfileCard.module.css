@@ -1,84 +1,142 @@
-  /* 5.5 Profile Section */
+/* 5.5 Profile Section */
+.github_profile {
+  background: var(--bg-card);
+  padding: 2rem;
+  border-radius: 1rem;
+  position: sticky; /* Sticky profile card */
+  top: 80px; /* Stick below header */
+  height: fit-content;
+  box-shadow: var(--card-shadow);
+  z-index: 10; /* Ensure profile card is above other content if needed */
+}
+
+.profile_avatar {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid var(--primary);
+  box-shadow: 0 0 0 3px var(--bg-card), 0 0 8px rgba(0,0,0,0.3); /* Add a subtle border shadow effect */
+}
+
+.profile_avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out; /* Smooth transform on hover */
+}
+
+.profile_username {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.profile_username h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.username {
+  color: var(--text-secondary);
+}
+
+.profile_bio {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile_location,
+.profile_company {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  justify-content: center; /* Center align location and company info */
+}
+
+.profile_location svg,
+.profile_company svg {
+  width: 1rem; /* Adjust icon size */
+  height: 1rem;
+  fill: var(--text-secondary); /* Match icon color to text */
+}
+
+
+.profile_followers {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns for followers/following */
+  gap: 1rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile_followers div h2 {
+  font-size: 1.2rem; /* Slightly larger follower/following numbers */
+  margin-bottom: 0.2rem;
+}
+
+.profile_followers div p {
+  font-size: 0.9rem; /* Smaller label for followers/following */
+  color: var(--text-secondary);
+}
+
+
+.profile_social_media {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.social_link {
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  transition: color 0.3s ease-in-out, transform 0.3s ease-in-out; /* More specific transitions */
+}
+
+.social_link:hover {
+  color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+  6. Animations - Animations are defined in global.module.css, no need to redefine here
+  ========================================================================== */
+
+
+/* Hover Effects */
+.profile_avatar img:hover {
+  transform: scale(1.08); /* Slightly more pronounced scale on hover */
+}
+
+
+/* ==========================================================================
+  9. Responsive Design
+  ========================================================================== */
+
+/* Extra small devices (portrait phones, less than 576px) */
+@media (max-width: 576px) {
   .github_profile {
-    background: var(--bg-card);
-    padding: 2rem;
-    border-radius: 1rem;
-    position: sticky;
-    top: 2rem;
-    height: fit-content;
-    box-shadow: var(--card-shadow);
+    position: static; /* No sticky positioning on extra small screens */
+    margin-bottom: 2rem; /* Add margin below profile */
   }
-  
-  .profile_avatar {
-    width: 150px;
-    height: 150px;
-    margin: 0 auto 1.5rem;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 4px solid var(--primary);
-  }
-  
-  .profile_avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .profile_username {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-  
-  .profile_username h1 {
-    font-size: 1.5rem;
-    margin-bottom: 0.25rem;
-  }
-  
-  .username {
-    color: var(--text-secondary);
-  }
-  
-  .profile_bio {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .profile_location,
-  .profile_company {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-secondary);
-  }
-  
+
   .profile_followers {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin: 1.5rem 0;
-    text-align: center;
-    padding: 1rem 0;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
+    grid-template-columns: 1fr; /* Stack followers/following on extra small screens */
   }
-  
-  .profile_social_media {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
+}
+
+/* Medium devices (tablets, less than 992px) */
+@media (max-width: 992px) {
+  .github_profile {
+    position: static; /* No sticky positioning on tablets */
+    margin-bottom: 2rem; /* Add margin below profile */
   }
-  
-  .social_link {
-    color: var(--text-secondary);
-    font-size: 1.25rem;
-    transition: var(--transition);
-  }
-  
-  .social_link:hover {
-    color: var(--primary);
-    transform: translateY(-2px);
-  }
+}
