@@ -61,22 +61,18 @@ function UserProfile() {
   }
 
   return (
-    <div className={styles.report_content} id="reportContent">
     <div className={styles.container}>
-      <UserProfileCard user={userProfile} />
-      {refreshMessage && <p className={styles.loading_message}>{refreshMessage}</p>}
-      <button onClick={handleRefresh} disabled={isRefreshing} className={styles.refresh_button}>
-        {isRefreshing ? 'Refreshing...' : 'Refresh Profile'}
-      </button>
-      <main>
-      <h2>Activity</h2>
-      <UserActivity username={username} />
-      <h2>Ranking</h2>
-      <UserRanking username={username} />
-      <h2>Repositories</h2>
-      <RepoList username={username} />
-      </main> 
-    </div>
+      <div className={styles.report_content} id="reportContent">
+        <UserProfileCard user={userProfile} />
+        
+        <main>
+          <div className={styles.github_profile_status}>
+          <UserActivity username={username} />
+          </div>
+          <UserRanking username={username} />
+          <RepoList username={username} />
+        </main>
+      </div>
     </div>
   );
 }
