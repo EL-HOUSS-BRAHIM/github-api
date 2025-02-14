@@ -1,0 +1,76 @@
+/* 5.2 Footer Styles */
+.footer {
+  background: var(--bg-card);
+  padding: 4rem 0 1rem;
+  margin-top: 4rem;
+}
+
+.footer_content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.footer_section h3 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.footer_section ul {
+  list-style: none;
+}
+
+.footer_section ul li {
+  margin-bottom: 0.5rem;
+}
+
+.footer_section a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.footer_section a:hover {
+  color: var(--primary);
+}
+
+.social_links {
+  display: flex;
+  gap: 1rem;
+}
+
+.social_links a {
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  transition: var(--transition);
+}
+
+.social_links a:hover {
+  color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.footer_bottom {
+  max-width: 1400px;
+  margin: 2rem auto 0;
+  padding: 2rem 2rem 0;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+  9. Responsive Design
+  ========================================================================== */
+
+/* Small devices (landscape phones, less than 768px) */
+@media (max-width: 768px) {
+  .footer_content {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+}
