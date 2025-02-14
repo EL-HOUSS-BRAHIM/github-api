@@ -1,6 +1,12 @@
-/* ==========================================================================
-  1. Modern Color Palette and Variables
-  ========================================================================== */
+  /* 4.1 Container Layout */
+  .root div, .container, .root {
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding-top: 80px; /* Height of header */
+    padding: 2rem;
+  }
+
   :root {
     /* Primary Colors */
     --primary: #2563eb; /* Main primary color */
@@ -28,11 +34,7 @@
     /* Transition */
     --transition: all 0.3s ease; /* Standard transition for smooth effects */
   }
-  
-  /* ==========================================================================
-    2. Reset & Base Styles
-    ========================================================================== */
-  /* Box-sizing and Reset */
+
   * {
     margin: 0;
     padding: 0;
@@ -46,10 +48,6 @@
     line-height: 1.6; /* Improve readability */
     overflow-x: hidden; /* Prevent horizontal scroll */
   }
-  
-  /* ==========================================================================
-    3. Typography
-    ========================================================================== */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
     margin-bottom: 1rem;
