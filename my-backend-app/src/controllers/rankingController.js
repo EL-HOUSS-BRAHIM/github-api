@@ -31,6 +31,8 @@ async function calculateUserRanking(req, res, next) {
         countryRank: ranking.country_rank,
         totalCommits: ranking.total_commits,
         totalContributions: ranking.total_contributions,
+        followers: ranking.followers,
+        publicRepos: ranking.public_repos,
         lastCalculated: ranking.last_calculated_at
       }
     });
@@ -55,7 +57,19 @@ async function getUserRanking(req, res, next) {
       throw new APIError(404, 'Ranking not found');
     }
 
-    return res.json(ranking);
+    return res.json({
+      username: user.username,
+      location: user.location,
+      country: ranking.country,
+      score: ranking.score,
+      globalRank: ranking.global_rank,
+      countryRank: ranking.country_rank,
+      totalCommits: ranking.total_commits,
+      totalContributions: ranking.total_contributions,
+      followers: ranking.followers,
+      publicRepos: ranking.public_repos,
+      lastCalculated: ranking.last_calculated_at,
+    });
   } catch (error) {
     console.error('Error fetching user ranking:', error);
     return next(error);

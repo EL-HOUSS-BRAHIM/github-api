@@ -5,7 +5,15 @@ const { APIError } = require('../utils/errors');
 
 let currentTokenIndex = 0;
 
+function hasGithubTokens() {
+  return Array.isArray(config.githubTokens) && config.githubTokens.length > 0;
+}
+
 function getNextToken() {
+  if (!hasGithubTokens()) {
+    return null;
+  }
+
   const token = config.githubTokens[currentTokenIndex];
   currentTokenIndex = (currentTokenIndex + 1) % config.githubTokens.length;
   return token;
@@ -14,9 +22,18 @@ function getNextToken() {
 const githubApi = axios.create({
   baseURL: 'https://api.github.com',
   headers: {
-    Authorization: `token ${getNextToken()}`,
     Accept: 'application/vnd.github.v3+json', // Specify API version
   },
+});
+
+githubApi.interceptors.request.use((request) => {
+  const token = getNextToken();
+  if (token) {
+    request.headers.Authorization = `token ${token}`;
+  } else {
+    delete request.headers.Authorization;
+  }
+  return request;
 });
 
 // Add this after existing imports
@@ -43,20 +60,44 @@ githubApi.interceptors.response.use(
       if (status === 404) {
         return Promise.reject(new APIError(404, 'Resource not found on GitHub'));
       } else if (status === 403) {
-        // Check for rate limit headers (if available)
         const rateLimitRemaining = error.response.headers['x-ratelimit-remaining'];
         const rateLimitReset = error.response.headers['x-ratelimit-reset'];
+        const originalRequest = error.config || {};
 
         if (rateLimitRemaining === '0') {
-          const resetTime = rateLimitReset ? new Date(rateLimitReset * 1000) : null;
-          console.log(`Rate limit exceeded. Retrying after ${resetTime}`);
-          await new Promise(resolve => setTimeout(resolve, (resetTime - Date.now()) + 1000));
-          // Switch to the next token
-          githubApi.defaults.headers.Authorization = `token ${getNextToken()}`;
-          return githubApi.request(error.config);
-        } else {
-          return Promise.reject(new APIError(403, 'GitHub API request forbidden'));
+          // Attempt token rotation before waiting for reset
+          if (hasGithubTokens()) {
+            const maxRetries = config.githubTokens.length;
+            originalRequest._tokenRetryCount = originalRequest._tokenRetryCount || 0;
+
+            if (originalRequest._tokenRetryCount < maxRetries) {
+              originalRequest._tokenRetryCount += 1;
+              const nextToken = getNextToken();
+              if (nextToken) {
+                originalRequest.headers = {
+                  ...(originalRequest.headers || {}),
+                  Authorization: `token ${nextToken}`,
+                };
+                return githubApi.request(originalRequest);
+              }
+            }
+          }
+
+          if (rateLimitReset) {
+            const resetMs = Number(rateLimitReset) * 1000;
+            const waitTime = Math.max(0, resetMs - Date.now()) + 1000;
+            if (!originalRequest._rateLimitWaited) {
+              console.log(`Rate limit exceeded. Waiting ${waitTime}ms before retrying.`);
+              originalRequest._rateLimitWaited = true;
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              return githubApi.request(originalRequest);
+            }
+          }
+
+          return Promise.reject(new APIError(403, 'GitHub API rate limit exceeded'));
         }
+
+        return Promise.reject(new APIError(403, 'GitHub API request forbidden'));
       } else if (status >= 500) {
         return Promise.reject(new APIError(status, 'GitHub API server error'));
       }
@@ -384,6 +425,7 @@ async function processUserRepos(username, repos) {
       const commitCount = await getRepoCommitCount(username, repo.name);
       console.log(`Got ${commitCount} commits for ${repo.name}`);
 
+      const license = repo.license?.spdx_id || repo.license?.key || repo.license?.name || null;
       processedRepos.push({
         name: repo.name,
         description: repo.description,
@@ -393,10 +435,21 @@ async function processUserRepos(username, repos) {
         issues: repo.open_issues_count || 0,
         last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
         commit_count: commitCount,
-        pull_request_count: 0 // Handle separately if needed
+        pull_request_count: 0, // Handle separately if needed
+        primary_language: repo.language || null,
+        license,
+        size: typeof repo.size === 'number' ? repo.size : 0,
+        watchers: typeof repo.watchers_count === 'number'
+          ? repo.watchers_count
+          : (typeof repo.subscribers_count === 'number' ? repo.subscribers_count : 0),
+        homepage: repo.homepage || null,
+        default_branch: repo.default_branch || null,
+        source_created_at: repo.created_at ? new Date(repo.created_at) : null,
+        source_updated_at: repo.updated_at ? new Date(repo.updated_at) : null,
       });
     } catch (error) {
       console.error(`Error processing repo ${repo.name}:`, error);
+      const license = repo.license?.spdx_id || repo.license?.key || repo.license?.name || null;
       processedRepos.push({
         name: repo.name,
         description: repo.description,
@@ -406,7 +459,17 @@ async function processUserRepos(username, repos) {
         issues: repo.open_issues_count || 0,
         last_commit: repo.pushed_at ? new Date(repo.pushed_at) : null,
         commit_count: 0,
-        pull_request_count: 0
+        pull_request_count: 0,
+        primary_language: repo.language || null,
+        license,
+        size: typeof repo.size === 'number' ? repo.size : 0,
+        watchers: typeof repo.watchers_count === 'number'
+          ? repo.watchers_count
+          : (typeof repo.subscribers_count === 'number' ? repo.subscribers_count : 0),
+        homepage: repo.homepage || null,
+        default_branch: repo.default_branch || null,
+        source_created_at: repo.created_at ? new Date(repo.created_at) : null,
+        source_updated_at: repo.updated_at ? new Date(repo.updated_at) : null,
       });
     }
   }

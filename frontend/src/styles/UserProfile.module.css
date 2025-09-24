@@ -1,4 +1,8 @@
 /* 5.4 Report Content */
+.container {
+  padding: 6rem 2rem 3rem;
+}
+
 .report_content {
   display: grid;
   grid-template-columns: 300px 1fr; /* Sidebar and main content layout */
@@ -19,6 +23,128 @@ main {
   display: grid;
   gap: 2rem;
   box-sizing: border-box;
+}
+
+.status_panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  background: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.75rem 2rem;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.status_text {
+  flex: 1 1 260px;
+}
+
+.status_message {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.status_meta {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.status_hint {
+  margin-top: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.status_metrics {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metrics_heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metrics_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 0.75rem;
+}
+
+.metric_item {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.metric_value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.metric_label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.status_button {
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 600;
+}
+
+.status_button:hover {
+  background: var(--primary-dark);
+}
+
+.status_button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pending_state {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  padding: 2.5rem 2rem;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  max-width: 720px;
+  margin: 4rem auto 0;
+  text-align: center;
+}
+
+.pending_title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.pending_message {
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+}
+
+.pending_hint {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
 }
 
 .github_profile_status {
@@ -42,6 +168,14 @@ main {
   main {
     grid-template-columns: 1fr; /* Stack main content on extra small screens */
     padding: 1rem; /* Adjust padding */
+  }
+
+  .status_panel {
+    padding: 1.5rem;
+  }
+
+  .metrics_grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import styles from '../styles/RepoList.module.css';
+import { formatRepoDate, formatRepoSize } from '../utils/metrics';
 
 function RepoList({ username }) {
   const [repos, setRepos] = useState([]);
@@ -72,48 +73,75 @@ function RepoList({ username }) {
             </div>
 
             <div className={styles.repo_meta}>
-              <div className={styles.repo_language}>
-                <span className={styles.lang_dot} style={{ background: '#f1e05a' }}></span>
-                {repo.language || 'Unknown'}
-              </div>
               <div className={styles.repo_stats}>
                 <span className={styles.stars} title="Stars">
-                  <i className="fas fa-star"></i> {repo.stars}
+                  <i className="fas fa-star"></i> {repo.stars ?? 0}
                 </span>
                 <span className={styles.forks} title="Forks">
-                  <i className="fas fa-code-branch"></i> {repo.forks}
+                  <i className="fas fa-code-branch"></i> {repo.forks ?? 0}
                 </span>
                 <span className={styles.issues} title="Open Issues">
-                  <i className="fas fa-exclamation-circle"></i> {repo.issues}
+                  <i className="fas fa-exclamation-circle"></i> {repo.issues ?? 0}
                 </span>
-                <span className={styles.prs} title="Pull Requests">
-                  <i className="fas fa-code-pull-request"></i> {repo.pull_requests}
+                <span className={styles.commits} title="Recorded commits">
+                  <i className="fas fa-history"></i> {repo.commit_count ?? 0}
+                </span>
+                <span className={styles.watchers} title="Watchers">
+                  <i className="fas fa-eye"></i> {repo.watchers ?? 0}
                 </span>
               </div>
             </div>
 
             <div className={styles.repo_details}>
               <div className={styles.repo_detail_item}>
+                <i className="fas fa-code"></i>
+                {repo.language || 'Language unknown'}
+              </div>
+              <div className={styles.repo_detail_item}>
                 <i className="fas fa-clock"></i>
                 Last commit: {repo.last_commit ? new Date(repo.last_commit).toLocaleDateString() : 'N/A'}
               </div>
               <div className={styles.repo_detail_item}>
                 <i className="fas fa-history"></i>
-                {repo.commits} commits
+                {repo.commit_count ?? 0} commits tracked
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-tags"></i>
+                {repo.topics?.length ? repo.topics.join(', ') : 'No topics'}
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-code-branch"></i>
+                Default branch: {repo.default_branch || 'Unknown'}
               </div>
               <div className={styles.repo_detail_item}>
                 <i className="fas fa-balance-scale"></i>
-                {repo.license || 'No license'}
+                License: {repo.license || 'Not specified'}
               </div>
               <div className={styles.repo_detail_item}>
                 <i className="fas fa-database"></i>
-                {repo.size} MB
+                {formatRepoSize(repo.size)}
               </div>
-            </div>
-
-            <div className={styles.repo_dates}>
-              <span>Created: {new Date(repo.created_at).toLocaleDateString()}</span>
-              <span>Updated: {new Date(repo.updated_at).toLocaleDateString()}</span>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-calendar-plus"></i>
+                Created: {formatRepoDate(repo.created_at)}
+              </div>
+              <div className={styles.repo_detail_item}>
+                <i className="fas fa-calendar-alt"></i>
+                Updated: {formatRepoDate(repo.updated_at)}
+              </div>
+              {repo.homepage && (
+                <div className={styles.repo_detail_item}>
+                  <i className="fas fa-link"></i>
+                  <a
+                    href={repo.homepage}
+                    className={styles.repo_detail_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {repo.homepage}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         ))}

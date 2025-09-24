@@ -29,6 +29,16 @@ const UserRanking = sequelize.define('UserRanking', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  followers: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+  },
+  public_repos: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+  },
   global_rank: {
     type: DataTypes.INTEGER,
     allowNull: true,

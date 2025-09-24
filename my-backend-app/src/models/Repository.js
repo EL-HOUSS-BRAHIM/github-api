@@ -28,6 +28,14 @@ const Repository = sequelize.define('Repository', {
     type: DataTypes.JSON, // Store topics as JSON array
     allowNull: true,
   },
+  primary_language: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  license: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   stars: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -59,6 +67,32 @@ const Repository = sequelize.define('Repository', {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0
+  },
+  size: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
+  },
+  watchers: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
+  },
+  homepage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  default_branch: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  source_created_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  source_updated_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
   },
 }, {
   // Optional: Add indexes for faster querying
