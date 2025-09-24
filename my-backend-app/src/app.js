@@ -5,6 +5,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json'); // Your Swagger/OpenAPI definition
 const userRoutes = require('./routes/user');
 const rankingRoutes = require('./routes/ranking');
+const systemRoutes = require('./routes/system');
 const { APIError } = require('./utils/errors');
 const cors = require('cors');
 
@@ -18,6 +19,7 @@ app.use(cors());
 // Routes
 app.use('/api/user', userRoutes);
 app.use('/api/ranking', rankingRoutes);
+app.use('/api/system', systemRoutes);
 
 // Serve Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

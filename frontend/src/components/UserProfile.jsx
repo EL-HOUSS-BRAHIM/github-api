@@ -8,6 +8,8 @@ import UserRanking from './UserRanking';
 import styles from '../styles/UserProfile.module.css';
 import { DEFAULT_QUEUE_METRICS, normalizeQueueMetrics } from '../utils/metrics';
 
+const SKELETON_SECTIONS = [0, 1, 2];
+
 function UserProfile() {
   const { username } = useParams();
   const [userProfile, setUserProfile] = useState(null);
@@ -125,7 +127,34 @@ function UserProfile() {
     : 'Not available';
 
   if (loading) {
-    return <div className={styles.container}><p className={styles.loading_message}>Loading user profile...</p></div>;
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading_state} role="status" aria-live="polite">
+          <aside className={styles.loading_sidebar}>
+            <div className={styles.loading_avatar} />
+            <div className={styles.loading_line} />
+            <div className={styles.loading_line_short} />
+            <div className={styles.loading_chip_row}>
+              <span className={styles.loading_chip} />
+              <span className={styles.loading_chip} />
+            </div>
+          </aside>
+          <div className={styles.loading_main}>
+            {SKELETON_SECTIONS.map((section) => (
+              <section key={section} className={styles.loading_panel}>
+                <div className={styles.loading_line} />
+                <div className={styles.loading_line_wide} />
+                <div className={styles.loading_metric_row}>
+                  <span className={styles.loading_metric} />
+                  <span className={styles.loading_metric} />
+                  <span className={styles.loading_metric} />
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {

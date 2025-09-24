@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install workspace tools
+        run: npm install
+
+      - name: Install backend dependencies
+        run: npm install --prefix my-backend-app
+
+      - name: Install frontend dependencies
+        run: npm install --prefix frontend
+
+      - name: Run lint checks
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test

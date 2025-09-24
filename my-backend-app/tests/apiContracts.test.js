@@ -13,6 +13,9 @@ const mockHarvesterQueue = {
   getJobCounts: jest.fn(),
   clean: jest.fn(),
   close: jest.fn(),
+  getRepeatableJobs: jest.fn(),
+  isPaused: jest.fn(),
+  getWorkers: jest.fn(),
 };
 
 const mockCacheUtils = {
@@ -37,6 +40,12 @@ const mockGithubService = {
   getUserProfile: jest.fn(),
 };
 
+const mockRankingSnapshotService = {
+  getLatestSnapshot: jest.fn(),
+  recordSnapshotForUser: jest.fn(),
+  isSnapshotFresh: jest.fn(),
+};
+
 jest.mock('../src/scheduler', () => ({}));
 jest.mock('../src/config/redis', () => mockRedisClient);
 jest.mock('../src/queues/harvester', () => mockHarvesterQueue);
@@ -49,6 +58,7 @@ jest.mock('../src/models', () => ({
 }));
 jest.mock('../src/services/ranking', () => mockRankingService);
 jest.mock('../src/services/github', () => mockGithubService);
+jest.mock('../src/services/rankingSnapshot', () => mockRankingSnapshotService);
 
 const app = require('../src/app');
 const redisClient = require('../src/config/redis');
@@ -81,10 +91,16 @@ beforeEach(() => {
   mockHarvesterQueue.getJobCounts.mockReset();
   mockHarvesterQueue.clean.mockReset();
   mockHarvesterQueue.close.mockReset();
+  mockHarvesterQueue.getRepeatableJobs.mockReset();
+  mockHarvesterQueue.isPaused.mockReset();
+  mockHarvesterQueue.getWorkers.mockReset();
 
   mockCacheUtils.deleteKeysByPattern.mockReset();
   mockRankingService.updateUserRanking.mockReset();
   mockRankingService.updateRankings.mockReset();
+  mockRankingSnapshotService.getLatestSnapshot.mockReset();
+  mockRankingSnapshotService.recordSnapshotForUser.mockReset();
+  mockRankingSnapshotService.isSnapshotFresh.mockReset();
 
   mockRedisClient.get.mockResolvedValue(null);
   mockRedisClient.set.mockResolvedValue(null);
@@ -103,9 +119,15 @@ beforeEach(() => {
   });
   mockHarvesterQueue.clean.mockResolvedValue(undefined);
   mockHarvesterQueue.close.mockResolvedValue(undefined);
+  mockHarvesterQueue.getRepeatableJobs.mockResolvedValue([]);
+  mockHarvesterQueue.isPaused.mockResolvedValue(false);
+  mockHarvesterQueue.getWorkers.mockResolvedValue([]);
 
   mockCacheUtils.deleteKeysByPattern.mockResolvedValue(0);
   mockRepositoryModel.findAndCountAll.mockResolvedValue({ count: 0, rows: [] });
+  mockRankingSnapshotService.getLatestSnapshot.mockResolvedValue(null);
+  mockRankingSnapshotService.recordSnapshotForUser.mockResolvedValue(null);
+  mockRankingSnapshotService.isSnapshotFresh.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -246,12 +268,19 @@ describe('User profile API', () => {
         completed: 0,
         failed: 0,
       },
+      ranking_snapshot: null,
     });
     expect(typeof response.body.data_age).toBe('number');
   });
 
   test('GET /api/user/:username queues refresh for stale data and returns metrics', async () => {
     const staleDate = new Date(Date.now() - (48 * 60 * 60 * 1000));
+    const snapshotRecord = {
+      recorded_at: new Date('2024-06-01T12:00:00.000Z'),
+      followers: 99,
+      public_repos: 10,
+      job_id: 'harvest-octocat',
+    };
     mockUserModel.findOne.mockResolvedValue({
       username: 'octocat',
       full_name: 'The Octocat',
@@ -265,12 +294,17 @@ describe('User profile API', () => {
       }),
     });
     mockHarvesterQueue.getJobs.mockResolvedValueOnce([]);
+    mockRankingSnapshotService.recordSnapshotForUser.mockResolvedValue(snapshotRecord);
 
     const response = await request(app).get('/api/user/octocat');
 
     expect(mockHarvesterQueue.add).toHaveBeenCalledWith(
       { username: 'octocat' },
       expect.objectContaining({ jobId: 'harvest-octocat', removeOnComplete: true })
+    );
+    expect(mockRankingSnapshotService.recordSnapshotForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ username: 'octocat' }),
+      expect.objectContaining({ jobId: 'harvest-octocat' })
     );
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -280,6 +314,60 @@ describe('User profile API', () => {
       refresh_metrics: expect.objectContaining({
         queued: 1,
       }),
+      ranking_snapshot: {
+        recordedAt: '2024-06-01T12:00:00.000Z',
+        followers: 99,
+        publicRepos: 10,
+        jobId: 'harvest-octocat',
+      },
+    });
+  });
+
+  test('GET /api/user/:username honors recent snapshot and avoids duplicate queueing', async () => {
+    const staleDate = new Date(Date.now() - (48 * 60 * 60 * 1000));
+    const snapshotRecord = {
+      recorded_at: new Date('2024-06-02T08:00:00.000Z'),
+      followers: 120,
+      public_repos: 45,
+      job_id: 'harvest-octocat',
+    };
+
+    mockUserModel.findOne.mockResolvedValue({
+      username: 'octocat',
+      full_name: 'The Octocat',
+      is_fetching: false,
+      last_fetched: staleDate,
+      followers: 120,
+      public_repos: 45,
+      toJSON: () => ({
+        username: 'octocat',
+        full_name: 'The Octocat',
+        is_fetching: false,
+        last_fetched: staleDate,
+        followers: 120,
+        public_repos: 45,
+      }),
+    });
+
+    mockRankingSnapshotService.getLatestSnapshot.mockResolvedValue(snapshotRecord);
+    mockRankingSnapshotService.isSnapshotFresh.mockReturnValue(true);
+    mockHarvesterQueue.getJobs.mockResolvedValueOnce([]);
+
+    const response = await request(app).get('/api/user/octocat');
+
+    expect(mockHarvesterQueue.add).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      username: 'octocat',
+      is_refreshing: true,
+      refresh_queued: true,
+      refresh_metrics: expect.objectContaining({ queued: 0 }),
+      ranking_snapshot: {
+        recordedAt: '2024-06-02T08:00:00.000Z',
+        followers: 120,
+        publicRepos: 45,
+        jobId: 'harvest-octocat',
+      },
     });
   });
 
@@ -302,12 +390,27 @@ describe('User profile API', () => {
       refresh_metrics: expect.objectContaining({
         queued: 1,
       }),
+      refresh_queued: true,
+      ranking_snapshot: null,
     });
   });
 });
 
 describe('User refresh API', () => {
   test('POST /api/user/:username/refresh clears cache and queues job', async () => {
+    const snapshotRecord = {
+      recorded_at: new Date('2024-06-03T10:00:00.000Z'),
+      followers: 450,
+      public_repos: 80,
+      job_id: 'refresh-octocat-123',
+    };
+
+    mockUserModel.findOne.mockResolvedValue({
+      id: 42,
+      username: 'octocat',
+      followers: 450,
+      public_repos: 80,
+    });
     mockHarvesterQueue.getJobCounts.mockResolvedValueOnce({
       waiting: 2,
       active: 1,
@@ -315,9 +418,11 @@ describe('User refresh API', () => {
       completed: 5,
       failed: 1,
     });
+    mockRankingSnapshotService.recordSnapshotForUser.mockResolvedValue(snapshotRecord);
 
     const response = await request(app).post('/api/user/octocat/refresh');
 
+    expect(mockUserModel.findOne).toHaveBeenCalledWith({ where: { username: 'octocat' } });
     expect(response.status).toBe(202);
     expect(redisClient.del).toHaveBeenCalledWith('user:octocat:profile');
     expect(cacheUtils.deleteKeysByPattern).toHaveBeenCalledWith('user:octocat:repos:*');
@@ -331,7 +436,11 @@ describe('User refresh API', () => {
         jobId: expect.stringMatching(/^refresh-octocat-/),
       })
     );
-    expect(response.body).toEqual({
+    expect(mockRankingSnapshotService.recordSnapshotForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ username: 'octocat', followers: 450, public_repos: 80 }),
+      expect.objectContaining({ jobId: expect.stringMatching(/^refresh-octocat-/) })
+    );
+    expect(response.body).toMatchObject({
       status: 'refreshing',
       message: 'User refresh job queued successfully',
       username: 'octocat',
@@ -344,6 +453,73 @@ describe('User refresh API', () => {
         failed: 1,
       },
       refresh_queued: true,
+      ranking_snapshot: expect.objectContaining({
+        recordedAt: '2024-06-03T10:00:00.000Z',
+        followers: 450,
+        publicRepos: 80,
+        jobId: 'refresh-octocat-123',
+      }),
+    });
+  });
+});
+
+describe('System health API', () => {
+  test('GET /api/system/health returns queue summary', async () => {
+    const repeatableJobs = [
+      { id: 'job1', name: 'daily-refresh', cron: '0 * * * *', next: '2024-06-04T00:00:00.000Z' },
+    ];
+
+    mockHarvesterQueue.getJobCounts.mockResolvedValueOnce({
+      waiting: 3,
+      active: 1,
+      delayed: 2,
+      completed: 10,
+      failed: 1,
+    });
+    mockHarvesterQueue.getRepeatableJobs.mockResolvedValueOnce(repeatableJobs);
+    mockHarvesterQueue.isPaused.mockResolvedValueOnce(false);
+    mockHarvesterQueue.getWorkers.mockResolvedValueOnce([
+      { id: 'worker-1', status: 'ready' },
+    ]);
+
+    const response = await request(app).get('/api/system/health');
+
+    expect(mockHarvesterQueue.getJobCounts).toHaveBeenCalledTimes(1);
+    expect(mockHarvesterQueue.getRepeatableJobs).toHaveBeenCalledTimes(1);
+    expect(mockHarvesterQueue.isPaused).toHaveBeenCalledTimes(1);
+    expect(mockHarvesterQueue.getWorkers).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'ok',
+      queue: {
+        counts: {
+          queued: 3,
+          active: 1,
+          delayed: 2,
+          completed: 10,
+          failed: 1,
+        },
+        isPaused: false,
+        repeatable: [
+          {
+            id: 'job1',
+            name: 'daily-refresh',
+            pattern: '0 * * * *',
+            nextRunAt: '2024-06-04T00:00:00.000Z',
+          },
+        ],
+      },
+      workers: {
+        total: 1,
+        isHealthy: true,
+        items: [
+          {
+            id: 'worker-1',
+            address: null,
+            status: 'ready',
+          },
+        ],
+      },
     });
   });
 });

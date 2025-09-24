@@ -9,16 +9,32 @@ const server = http.createServer(app);
 
 async function startServer() {
   try {
-    // Clean up any stalled jobs
-    console.log('Cleaning up stalled jobs...');
+    console.log('Preparing harvester queue...');
     try {
-      await harvesterQueue.clean(0, 'delayed');
-      await harvesterQueue.clean(0, 'wait');
-      await harvesterQueue.clean(0, 'active');
-      console.log('Queue cleanup completed');
+      if (typeof harvesterQueue.isReady === 'function') {
+        await harvesterQueue.isReady();
+      }
+
+      const cleanupStatuses = ['wait', 'delayed', 'active', 'completed', 'failed', 'stalled'];
+      await Promise.all(cleanupStatuses.map(async (status) => {
+        try {
+          await harvesterQueue.clean(0, status);
+        } catch (cleanupError) {
+          console.warn(`Queue cleanup warning for status "${status}":`, cleanupError);
+        }
+      }));
+
+      let repeatableJobs = [];
+      try {
+        repeatableJobs = await harvesterQueue.getRepeatableJobs();
+      } catch (repeatableError) {
+        console.warn('Unable to fetch repeatable job metrics during startup:', repeatableError);
+      }
+
+      console.log(`Queue ready. Repeatable jobs tracked: ${repeatableJobs.length}`);
     } catch (queueError) {
-      console.warn('Queue cleanup warning:', queueError);
-      // Continue startup even if queue cleanup fails
+      console.warn('Queue preparation warning:', queueError);
+      // Continue startup even if queue prep fails
     }
 
     // Test database connection

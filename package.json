@@ -1,0 +1,25 @@
+{
+  "name": "github-api-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "install:backend": "npm install --prefix my-backend-app",
+    "install:frontend": "npm install --prefix frontend",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "npm run lint --prefix my-backend-app",
+    "lint:frontend": "npm run lint --prefix frontend",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "npm test --prefix my-backend-app",
+    "test:frontend": "npm test --prefix frontend",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.2"
+  },
+  "lint-staged": {
+    "my-backend-app/**/*.js": "npm run lint:backend",
+    "frontend/src/**/*.{js,jsx}": "npm run lint:frontend"
+  }
+}

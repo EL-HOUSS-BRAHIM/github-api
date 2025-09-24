@@ -1,66 +1,55 @@
-# Dependencies
+# Dependency directories
 node_modules/
+frontend/node_modules/
+my-backend-app/node_modules/
+
+# Package manager files
 package-lock.json
 yarn.lock
-./node_modules/
-index.html
-!frontend/index.html
-script.js
-style.css
-IMG_20240703_152420.png
+pnpm-lock.yaml
 
-# Environment variables
-.env
-./.env
-.env.*
-!.env.example
-.rc
-migrations/
-seeders/
-config/config.js
-# Build output
-dist/
+# Build outputs
 build/
+dist/
+frontend/dist/
+my-backend-app/dist/
 *.tsbuildinfo
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# Environment files
+.env
+.env.*
+!.env.example
 
-# IDE - JetBrains
-.idea/
-*.iml
-*.iws
-
-# Logs
+# Logs and coverage
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Testing
 coverage/
 .nyc_output/
 
-# OS
+# IDE and editor state
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.iws
+
+# System files
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 
-# Temp files
+# Temporary files
 *.tmp
 *.temp
 .cache/
 
-# TypeORM
-ormconfig.json
-ormlogs.log
-
-# Application specific
+# Application specific artifacts
 uploads/
 temp/
