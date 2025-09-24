@@ -5,15 +5,10 @@ const { validateUsername, validatePagination } = require('../utils/validation');
 const { APIError } = require('../utils/errors');
 const redisClient = require('../config/redis');
 const { deleteKeysByPattern } = require('../utils/cache');
+const { DEFAULT_QUEUE_METRICS, normalizeQueueMetrics } = require('../utils/queue');
+const rankingSnapshotService = require('../services/rankingSnapshot');
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_QUEUE_METRICS = {
-  queued: 0,
-  active: 0,
-  delayed: 0,
-  completed: 0,
-  failed: 0,
-};
 
 function toUtcDayMs(value) {
   const date = value instanceof Date ? value : new Date(value);
@@ -87,17 +82,34 @@ function calculateStreaks(dailyActivity) {
   return { currentStreak, longestStreak: Math.max(longest, currentStreak) };
 }
 
-function normalizeQueueMetrics(counts) {
-  if (!counts || typeof counts !== 'object') {
-    return { ...DEFAULT_QUEUE_METRICS };
+function serializeRankingSnapshot(snapshot) {
+  if (!snapshot) {
+    return null;
   }
 
+  const recordedAt = snapshot.recorded_at instanceof Date
+    ? snapshot.recorded_at
+    : new Date(snapshot.recorded_at);
+
+  const rankingCalculatedAt = snapshot.ranking_calculated_at instanceof Date
+    ? snapshot.ranking_calculated_at
+    : snapshot.ranking_calculated_at
+      ? new Date(snapshot.ranking_calculated_at)
+      : null;
+
   return {
-    queued: typeof counts.waiting === 'number' ? counts.waiting : DEFAULT_QUEUE_METRICS.queued,
-    active: typeof counts.active === 'number' ? counts.active : DEFAULT_QUEUE_METRICS.active,
-    delayed: typeof counts.delayed === 'number' ? counts.delayed : DEFAULT_QUEUE_METRICS.delayed,
-    completed: typeof counts.completed === 'number' ? counts.completed : DEFAULT_QUEUE_METRICS.completed,
-    failed: typeof counts.failed === 'number' ? counts.failed : DEFAULT_QUEUE_METRICS.failed,
+    recordedAt: recordedAt instanceof Date && !Number.isNaN(recordedAt.getTime())
+      ? recordedAt.toISOString()
+      : null,
+    followers: snapshot.followers ?? null,
+    publicRepos: snapshot.public_repos ?? null,
+    score: snapshot.score ?? null,
+    globalRank: snapshot.global_rank ?? null,
+    countryRank: snapshot.country_rank ?? null,
+    rankingCalculatedAt: rankingCalculatedAt instanceof Date && !Number.isNaN(rankingCalculatedAt.getTime())
+      ? rankingCalculatedAt.toISOString()
+      : null,
+    jobId: snapshot.job_id ?? null,
   };
 }
 
@@ -110,8 +122,26 @@ async function getUserProfile(req, res, next) {
   const FETCH_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
   try {
-    // Find user in database
     const user = await User.findOne({ where: { username } });
+
+    let lastFetchedDate = null;
+    let timeSinceLastFetch = null;
+    if (user) {
+      lastFetchedDate = user.last_fetched instanceof Date
+        ? user.last_fetched
+        : new Date(user.last_fetched);
+
+      if (lastFetchedDate instanceof Date && !Number.isNaN(lastFetchedDate.getTime())) {
+        timeSinceLastFetch = Date.now() - lastFetchedDate.getTime();
+      }
+    }
+
+    let latestSnapshot = null;
+    let snapshotFresh = false;
+    if (user) {
+      latestSnapshot = await rankingSnapshotService.getLatestSnapshot(user.id);
+      snapshotFresh = rankingSnapshotService.isSnapshotFresh(latestSnapshot, user, FETCH_THRESHOLD);
+    }
 
     let refreshMetrics = { ...DEFAULT_QUEUE_METRICS };
     try {
@@ -121,50 +151,76 @@ async function getUserProfile(req, res, next) {
       console.error('Failed to retrieve queue metrics:', metricsError);
     }
 
-    // Check if user exists and data is fresh
-    if (user && !user.is_fetching) {
-      // Convert last_fetched to Date object if it isn't already
-      const lastFetchedDate = user.last_fetched instanceof Date
-        ? user.last_fetched 
-        : new Date(user.last_fetched);
-      
-      const timeSinceLastFetch = Date.now() - lastFetchedDate.getTime();
-      
-      // Return cached data if fresh
-      if (timeSinceLastFetch < FETCH_THRESHOLD) {
-        return res.json({
-          ...user.toJSON(),
-          data_age: timeSinceLastFetch,
-          is_fresh: true,
-          last_fetched: lastFetchedDate.toISOString(),
-          refresh_metrics: refreshMetrics,
-        });
-      }
+    if (user && !user.is_fetching && typeof timeSinceLastFetch === 'number' && timeSinceLastFetch < FETCH_THRESHOLD) {
+      return res.json({
+        ...user.toJSON(),
+        data_age: timeSinceLastFetch,
+        is_fresh: true,
+        last_fetched: lastFetchedDate.toISOString(),
+        refresh_metrics: refreshMetrics,
+        ranking_snapshot: serializeRankingSnapshot(latestSnapshot),
+      });
     }
 
-    // Queue refresh if data is stale or user not found
     const existingJobs = await harvesterQueue.getJobs(['active', 'waiting']);
     const isQueued = existingJobs.some(job => job.data.username === username);
 
-    if (!isQueued) {
-      await harvesterQueue.add({ username }, {
-        jobId: `harvest-${username}`,
-        removeOnComplete: true
-      });
-      refreshMetrics = {
-        ...refreshMetrics,
-        queued: refreshMetrics.queued + 1,
-      };
+    let refreshQueued = isQueued || Boolean(user?.is_fetching);
+    if (snapshotFresh) {
+      refreshQueued = true;
     }
 
-    // Return stale data with refresh status if available
+    let shouldQueueRefresh = false;
+    if (!user) {
+      shouldQueueRefresh = true;
+    } else {
+      const staleDueToAge = typeof timeSinceLastFetch === 'number'
+        ? timeSinceLastFetch >= FETCH_THRESHOLD
+        : true;
+
+      shouldQueueRefresh = !user.is_fetching && staleDueToAge && !snapshotFresh;
+    }
+
+    if (shouldQueueRefresh && !isQueued) {
+      const jobOptions = {
+        jobId: `harvest-${username}`,
+        removeOnComplete: true,
+      };
+
+      let job;
+      try {
+        job = await harvesterQueue.add({ username }, jobOptions);
+      } catch (queueError) {
+        console.error(`Failed to enqueue harvest job for ${username}:`, queueError);
+        throw queueError;
+      }
+
+      refreshMetrics = {
+        ...refreshMetrics,
+        queued: (refreshMetrics.queued ?? DEFAULT_QUEUE_METRICS.queued) + 1,
+      };
+
+      refreshQueued = true;
+
+      if (user) {
+        const jobId = job?.id ?? jobOptions.jobId;
+        const recordedSnapshot = await rankingSnapshotService.recordSnapshotForUser(user, { jobId });
+        if (recordedSnapshot) {
+          latestSnapshot = recordedSnapshot;
+          snapshotFresh = true;
+        }
+      }
+    }
+
     if (user) {
       return res.json({
         ...user.toJSON(),
         is_fresh: false,
-        is_refreshing: true,
-        refresh_queued: true,
+        is_refreshing: refreshQueued,
+        refresh_queued: refreshQueued,
         refresh_metrics: refreshMetrics,
+        ranking_snapshot: serializeRankingSnapshot(latestSnapshot),
+        data_age: typeof timeSinceLastFetch === 'number' ? timeSinceLastFetch : null,
       });
     }
 
@@ -174,6 +230,8 @@ async function getUserProfile(req, res, next) {
       retryAfter: 5,
       username,
       refresh_metrics: refreshMetrics,
+      refresh_queued: refreshQueued,
+      ranking_snapshot: null,
     });
 
   } catch (error) {
@@ -424,6 +482,8 @@ async function refreshUserInfo(req, res, next) {
       throw new APIError(400, 'Invalid username format');
     }
 
+    const user = await User.findOne({ where: { username } });
+
     // Clear cache
     await redisClient.del(`user:${username}:profile`);
     await deleteKeysByPattern(`user:${username}:repos:*`);
@@ -436,12 +496,14 @@ async function refreshUserInfo(req, res, next) {
       console.error('Failed to retrieve queue metrics before queuing refresh:', metricsError);
     }
 
+    const jobId = `refresh-${username}-${Date.now()}`;
+
     // Queue refresh job
     await harvesterQueue.add(
       'refresh-user',
       { username },
       {
-        jobId: `refresh-${username}-${Date.now()}`,
+        jobId,
         removeOnComplete: true,
         attempts: 3
       }
@@ -452,6 +514,11 @@ async function refreshUserInfo(req, res, next) {
       queued: (refreshMetrics.queued ?? DEFAULT_QUEUE_METRICS.queued) + 1,
     };
 
+    let recordedSnapshot = null;
+    if (user) {
+      recordedSnapshot = await rankingSnapshotService.recordSnapshotForUser(user, { jobId });
+    }
+
     return res.status(202).json({
       status: 'refreshing',
       message: 'User refresh job queued successfully',
@@ -459,6 +526,7 @@ async function refreshUserInfo(req, res, next) {
       retryAfter: 5,
       refresh_metrics: refreshMetrics,
       refresh_queued: true,
+      ranking_snapshot: serializeRankingSnapshot(recordedSnapshot),
     });
 
   } catch (error) {

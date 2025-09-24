@@ -16,5 +16,12 @@ export default defineConfig({
       localsConvention: "camelCase",
       generateScopedName: "[name]__[local]___[hash:base64:5]"
     }
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './tests/setupTests.js',
+    coverage: {
+      reporter: ['text', 'json-summary']
+    }
   }
 })

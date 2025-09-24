@@ -1,6 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const env = require('./env');
 
 function readCACertificate(filePath) {
   if (!filePath) {
@@ -21,46 +22,38 @@ function readCACertificate(filePath) {
   }
 }
 
-function buildSSLConfig() {
-  const ca = readCACertificate(process.env.DB_SSL_CA_PATH);
+function buildSSLConfig(sslSettings) {
+  if (!sslSettings) {
+    return undefined;
+  }
+
+  const ca = readCACertificate(sslSettings.caPath);
   if (!ca) {
     return undefined;
   }
 
   return {
     ca,
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    rejectUnauthorized: sslSettings.rejectUnauthorized,
   };
 }
 
-const parsedPort = Number(process.env.DB_PORT) || 3306;
-const parsedRedisPort = Number(process.env.REDIS_PORT) || 6379;
-
-const tokensEnv = process.env.GITHUB_TOKENS || '';
-const githubTokens = tokensEnv
-  .split(',')
-  .map(token => token.trim())
-  .filter(Boolean);
-
-if (tokensEnv && githubTokens.length === 0) {
-  console.warn('GITHUB_TOKENS is defined but no valid tokens were parsed.');
-}
-
 module.exports = {
-  port: Number(process.env.PORT) || 3000,
+  port: env.port,
   db: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parsedPort,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    name: process.env.DB_NAME || 'github_insights',
-    ssl: buildSSLConfig(),
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+    name: env.db.name,
+    ssl: buildSSLConfig(env.db.ssl),
   },
-  githubTokens,
+  githubTokens: env.githubTokens,
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parsedRedisPort,
-    password: process.env.REDIS_PASSWORD || undefined,
-    tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+    host: env.redis.host,
+    port: env.redis.port,
+    username: env.redis.username,
+    password: env.redis.password,
+    tls: env.redis.tls ? {} : undefined,
   },
 };

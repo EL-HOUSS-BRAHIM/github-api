@@ -55,12 +55,16 @@ cd github-api
 
 2. Install backend dependencies and prepare an environment file:
 ```bash
-cd my-backend-app
-npm install
-cp .env.example .env
+npm run install:backend
+cp my-backend-app/.env.example my-backend-app/.env
 ```
 
-3. Update `.env` with the values that match your setup. The defaults are tuned for local MySQL + Redis deployments:
+3. Install frontend dependencies:
+```bash
+npm run install:frontend
+```
+
+4. Update `.env` with the values that match your setup. The defaults are tuned for local MySQL + Redis deployments:
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -83,19 +87,48 @@ The `.env.example` file in `my-backend-app/` documents these options for quick r
 
 ### Installation
 
-Install backend dependencies:
+Run the following commands from the repository root to install dependencies for each service:
+
 ```bash
-cd my-backend-app
-npm install
+npm run install:backend
+npm run install:frontend
 ```
 
-Install frontend dependencies:
+To install everything in one step, run:
+
 ```bash
-cd ../frontend
-npm install
+npm run install:all
 ```
 
-Return to the project root when you are done installing packages.
+### Workspace scripts
+
+The root `package.json` exposes helper commands for day-to-day tasks:
+
+| Command | Description |
+| --- | --- |
+| `npm run install:backend` | Install backend dependencies |
+| `npm run install:frontend` | Install frontend dependencies |
+| `npm run install:all` | Install dependencies for both services |
+| `npm run lint` | Lint backend and frontend projects |
+| `npm run lint:backend` | Lint backend code only |
+| `npm run lint:frontend` | Lint frontend code only |
+| `npm run test` | Execute backend and frontend test suites |
+| `npm run test:backend` | Run backend tests |
+| `npm run test:frontend` | Run frontend tests |
+
+### Git hooks
+
+Husky and lint-staged enforce linting before commits. After installing dependencies, enable the hooks with:
+
+```bash
+npm run prepare
+```
+
+The configured pre-commit hook runs `lint-staged`, which currently triggers the backend and frontend lint tasks for staged JavaScript files.
+
+### Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) installs dependencies, runs the aggregated lint command, and executes the backend and frontend test suites for every push and pull request targeting `main`.
 
 ### Running locally
 

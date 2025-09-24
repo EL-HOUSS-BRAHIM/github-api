@@ -11,8 +11,8 @@ if (config.redis.password) {
   redisOptions.password = config.redis.password;
 }
 
-if (process.env.REDIS_USERNAME) {
-  redisOptions.username = process.env.REDIS_USERNAME;
+if (config.redis.username) {
+  redisOptions.username = config.redis.username;
 }
 
 if (config.redis.tls) {

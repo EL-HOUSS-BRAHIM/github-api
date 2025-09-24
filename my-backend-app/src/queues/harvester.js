@@ -15,8 +15,8 @@ if (config.redis.password) {
   queueRedisOptions.password = config.redis.password;
 }
 
-if (process.env.REDIS_USERNAME) {
-  queueRedisOptions.username = process.env.REDIS_USERNAME;
+if (config.redis.username) {
+  queueRedisOptions.username = config.redis.username;
 }
 
 if (config.redis.tls) {
@@ -232,120 +232,6 @@ async function saveToDatabase(userData, repoData, activityData) {
   }
 }
 
-// Helper functions to process data into the format you need for your database
-
-function extractSocialAccounts(bio, blog, socialUrls = []) {
-  const social = {};
-
-  // Helper to clean extracted username
-  const cleanUsername = (str) => {
-    if (!str) return null;
-    return str.replace(/\/$/, '')
-              .split('/').pop()
-              .split('?')[0]
-              .replace(/^@/, ''); // Remove leading '@'
-  };
-
-  // Common social media patterns
-  const patterns = {
-    linkedin: [
-      /linkedin\.com\/in\/([^\/\s]+)/i,
-      /linkedin\.com\/profile\/view\?id=([^\/\s]+)/i
-    ],
-    twitter: [
-      /twitter\.com\/([^\/\s]+)/i,
-      /x\.com\/([^\/\s]+)/i,
-      /@([a-zA-Z0-9_]+)/i
-    ],
-    facebook: [
-      /facebook\.com\/([^\/\s]+)/i,
-      /fb\.com\/([^\/\s]+)/i
-    ],
-    instagram: [
-      /instagram\.com\/([^\/\s]+)/i,
-      /insta\.gram\.com\/([^\/\s]+)/i
-    ],
-    youtube: [
-      /youtube\.com\/(?:c\/|channel\/|user\/)?([^\/\s@]+)/i,
-      /youtube\.com\/@([^\/\s]+)/i
-    ],
-    github: [
-      /github\.com\/([^\/\s]+)/i
-    ],
-    medium: [
-      /medium\.com\/@([^\/\s]+)/i,
-      /([^\/\s]+)\.medium\.com/i
-    ],
-    dev: [
-      /dev\.to\/([^\/\s]+)/i
-    ],
-    stackoverflow: [
-      /stackoverflow\.com\/users\/([^\/\s]+)/i
-    ],
-    dribbble: [
-      /dribbble\.com\/([^\/\s]+)/i
-    ],
-    behance: [
-      /behance\.net\/([^\/\s]+)/i
-    ]
-  };
-
-  // Process text content for potential social media handles or URLs
-  const processText = (text) => {
-    if (!text) return;
-    console.log('Processing text for social extraction:', text);
-
-    // Extract and process URLs
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urls = text.match(urlRegex) || [];
-    urls.forEach((url) => {
-      Object.entries(patterns).forEach(([platform, regexList]) => {
-        regexList.forEach((regex) => {
-          const match = url.match(regex);
-          if (match) {
-            const extracted = cleanUsername(match[match.length - 1]);
-            console.log(`Found ${platform}: ${extracted} from URL: ${url}`);
-            social[platform] = extracted;
-          }
-        });
-      });
-    });
-
-    // Also check plain text for patterns (e.g., @username)
-    Object.entries(patterns).forEach(([platform, regexList]) => {
-      regexList.forEach((regex) => {
-        const match = text.match(regex);
-        if (match && !social[platform]) {
-          const extracted = cleanUsername(match[match.length - 1]);
-          console.log(`Found ${platform}: ${extracted} in text`);
-          social[platform] = extracted;
-        }
-      });
-    });
-  };
-
-  // Process all provided sources: bio, blog, and additional URLs
-  [bio, blog, ...socialUrls].filter(Boolean).forEach(processText);
-
-  // Additional override for blog field
-  if (blog) {
-    if (blog.includes('linkedin.com')) social.linkedin = cleanUsername(blog);
-    if (blog.includes('twitter.com') || blog.includes('x.com')) social.twitter = cleanUsername(blog);
-    if (blog.includes('medium.com')) social.medium = cleanUsername(blog);
-    if (blog.includes('dev.to')) social.dev = cleanUsername(blog);
-  }
-
-  // Ensure empty strings are converted to null
-  Object.keys(social).forEach(key => {
-    if (social[key] === "") {
-      social[key] = null;
-    }
-  });
-
-  return social;
-}
-
-
 function processUserProfile(data) {
   // First check for twitter_username from GitHub API
   const social = {
@@ -354,7 +240,7 @@ function processUserProfile(data) {
   };
 
   // Then extract additional social accounts from bio and blog
-  const extractedSocial = extractSocialAccounts(
+  const extractedSocial = githubService.extractSocialAccounts(
     data.bio || '',
     data.blog || '',
     [data.html_url]  // Add GitHub profile URL
