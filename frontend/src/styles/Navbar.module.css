@@ -47,6 +47,11 @@
   .nav_link:hover {
     color: var(--primary);
   }
+
+  .nav_link_active {
+    color: var(--primary);
+    font-weight: 600;
+  }
   /* Small devices (landscape phones, less than 768px) */
   @media (max-width: 768px) {
     .nav_links {

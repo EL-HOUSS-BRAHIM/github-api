@@ -2,7 +2,8 @@
 const { User, UserRanking, Activity, Repository } = require('../models');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const { normalizeLocation } = require('../utils/helpers'); // Add this import
+const { normalizeLocation } = require('../utils/helpers');
+const githubService = require('./github');
 
 class RankingService {
   async calculateUserScore(user) {
@@ -117,25 +118,25 @@ class RankingService {
       const totalCommits = await this.calculateTotalCommits(userId);
       const totalContributions = await this.calculateTotalContributions(userId);
 
+      const rankingPayload = {
+        score,
+        country: normalizedLocation,
+        total_commits: totalCommits,
+        total_contributions: totalContributions,
+        last_calculated_at: new Date(),
+        followers: user.followers,
+        public_repos: user.public_repos,
+      };
+
       if (!ranking) {
         ranking = await UserRanking.create({
           user_id: userId,
-          country: normalizedLocation,
-          score,
-          total_commits: totalCommits,
-          total_contributions: totalContributions,
-          last_calculated_at: new Date(),
           global_rank: 0,
-          country_rank: 0
+          country_rank: 0,
+          ...rankingPayload,
         });
       } else {
-        await ranking.update({
-          score,
-          country: normalizedLocation,
-          total_commits: totalCommits,
-          total_contributions: totalContributions,
-          last_calculated_at: new Date()
-        });
+        await ranking.update(rankingPayload);
       }
 
       // Update rankings after score change
@@ -159,6 +160,10 @@ class RankingService {
     if (hoursSinceLastUpdate >= 24) return true;
 
     // Check if basic stats have changed
+    if (ranking.followers == null || ranking.public_repos == null) {
+      return true;
+    }
+
     if (user.followers !== ranking.followers ||
         user.public_repos !== ranking.public_repos) {
       return true;
@@ -170,15 +175,7 @@ class RankingService {
   // Add this new method to fetch users by location
   async searchUsersByLocation(location, page = 1) {
     try {
-      const response = await githubApi.get(`/search/users`, {
-        params: {
-          q: `location:${location} followers:>=30`, // Add followers filter
-          page,
-          per_page: 100,
-          sort: 'followers'
-        }
-      });
-      return response.data;
+      return githubService.searchUsersByLocation(location, page);
     } catch (error) {
       console.error(`Error searching users in ${location}:`, error);
       throw error;

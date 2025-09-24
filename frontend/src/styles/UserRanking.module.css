@@ -8,12 +8,116 @@
 
 .ranking_header {
   margin-bottom: 1.5rem;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .ranking_header h2 {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
+}
+
+.refresh_button {
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: var(--transition);
+}
+
+.refresh_button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh_button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.loading_message,
+.error_message {
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+
+.error_message {
+  color: #ff6b6b;
+}
+
+.repo_detail_item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.rank_summary {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.rank_info {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.rank {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.label {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.ranking_metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.metric_card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  text-align: center;
+}
+
+.metric_label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.metric_value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty_state {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  border-radius: 0.75rem;
 }
 
 .ranking_list {
@@ -92,8 +196,23 @@
     padding: 1.5rem; /* Reduce padding on smaller screens */
   }
 
+  .ranking_header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
   .ranking_header h2 {
     font-size: 1.3rem; /* Slightly smaller header on small screens */
+    margin-bottom: 0;
+  }
+
+  .rank_summary {
+    flex-direction: column;
+  }
+
+  .ranking_metrics {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 
   .ranking_item {
@@ -124,6 +243,10 @@
 @media (max-width: 576px) {
   .github_profile_ranking {
     padding: 1rem; /* Even smaller padding on extra small screens */
+  }
+
+  .ranking_metrics {
+    grid-template-columns: 1fr;
   }
 
   .ranking_header h2 {

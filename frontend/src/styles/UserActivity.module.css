@@ -1,139 +1,168 @@
-/* 5.7 Status Grid */
-.status_grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Flexible grid columns */
-  gap: 1rem;
-  margin-top: 1rem;
+.activity_container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
-.status_item {
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section_header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section_meta {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.summary_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.summary_card {
   background: rgba(255, 255, 255, 0.05);
-  padding: 1rem;
-  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary_label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.summary_value {
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.summary_helper {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.breakdown_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.metric_card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric_label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric_value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.metric_helper {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.table_wrapper {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.activity_table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.activity_table th,
+.activity_table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+}
+
+.activity_table thead {
+  background: rgba(255, 255, 255, 0.05);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.activity_table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.activity_table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.empty_state {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  color: var(--text-secondary);
   text-align: center;
 }
 
-/* 5.8 Language List */
-.language_list {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.language_item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.lang_color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.lang_percent {
-  margin-left: auto;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-/* ==========================================================================
-  Additional Styles
-  ========================================================================== */
-/* Calendar Heatmap */
-.contribution_cell:hover {
-  stroke: #ffffff33;
-  stroke-width: 1px;
-}
-
-#activityHeatmap {
-  overflow-x: auto; /* Enable horizontal scroll for heatmap if content overflows */
-  margin-top: 1rem;
-}
-
-canvas {
-  max-width: 100%;
-  margin: 1rem 0;
-}
-
-/* Languages and Stats Headers */
-.languages_header, .section_header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.info_tooltip {
-  color: var(--text-secondary);
-  cursor: help;
-  font-size: 0.875rem;
-}
-
-.language_block {
-  margin-bottom: 1rem;
-}
-
-.language_info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.lang_bar_bg {
-  width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden; /* Ensure bar doesn't overflow background */
-}
-
-.lang_bar {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease; /* Smooth width transition for language bars */
-}
-
-.lang_name {
-  flex: 1; /* Language name takes available space */
-}
-
-.lang_percent {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  white-space: nowrap; /* Prevent percentage from wrapping */
-}
-
-/* Streak Chart */
-#streakChart {
-  margin-top: 1.5rem;
-}
-
-.streak_info {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two columns for streak info */
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-/* Contribution Graph */
 .contribution_graph {
-  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* ==========================================================================
-  9. Responsive Design
-  ========================================================================== */
+.contribution_graph img {
+  width: 100%;
+  max-width: 600px;
+}
 
-/* Small devices (landscape phones, less than 768px) */
+.loading_message,
+.error_message {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+}
+
+.error_message {
+  color: #ff6b6b;
+}
+
 @media (max-width: 768px) {
-  .status_grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Adjust status grid columns on smaller screens */
+  .section_header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .streak_info {
-    grid-template-columns: 1fr; /* Stack streak info on smaller screens */
+  .summary_value {
+    font-size: 1.5rem;
   }
 }

@@ -13,9 +13,9 @@ function Footer() {
           <div className={styles.footer_section}>
             <h3>Links</h3>
             <ul>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">GitHub API</a></li>
+              <li><Link to="/about">About</Link></li>
+              <li><Link to="/contact">Contact</Link></li>
+              <li><a href="https://docs.github.com/en/rest" target="_blank" rel="noopener noreferrer">GitHub API</a></li>
             </ul>
           </div>
           <div className={styles.footer_section}>

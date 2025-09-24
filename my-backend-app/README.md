@@ -45,42 +45,43 @@ A robust backend API service for collecting, processing, and serving GitHub user
 
 ### Environment Setup
 
-1. Clone the repository:
+1. Install dependencies and prepare a local environment file:
 ```bash
-git clone https://github.com/EL-HOUSS-BRAHIM/github-api.git
-cd github-api
-```
-
-2. Copy the example environment file:
-```bash
+npm install
 cp .env.example .env
 ```
 
-3. Configure your environment variables in `.env`:
-```
-PORT=3000
-DB_HOST=localhost
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=github_data
-GITHUB_TOKEN=your_github_token
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
+2. Configure your environment variables in `.env`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PORT` | `3000` | HTTP port used by the Express API |
+| `DB_HOST` | `127.0.0.1` | MySQL host name |
+| `DB_PORT` | `3306` | MySQL port |
+| `DB_USER` | `root` | Database user for the ingestion schema |
+| `DB_PASSWORD` | _(blank)_ | Password for `DB_USER` |
+| `DB_NAME` | `github_insights` | Database name used by Sequelize |
+| `DB_SSL_CA_PATH` | _(blank)_ | Optional absolute path to a CA certificate when connecting over TLS |
+| `DB_SSL_REJECT_UNAUTHORIZED` | `true` | Set to `false` to skip certificate validation in non-production environments |
+| `GITHUB_TOKENS` | _(blank)_ | Comma separated list of GitHub personal access tokens used for rate-limit rotation |
+| `REDIS_HOST` | `127.0.0.1` | Redis hostname |
+| `REDIS_PORT` | `6379` | Redis port |
+| `REDIS_USERNAME` | _(blank)_ | Optional username when Redis ACLs are enabled |
+| `REDIS_PASSWORD` | _(blank)_ | Redis password when authentication is required |
+| `REDIS_TLS` | `false` | Set to `true` to enable TLS connections to Redis |
 
 ### Installation
 
-1. Install dependencies:
+Install dependencies:
 ```bash
 npm install
 ```
 
-2. Start the services using Docker:
-```bash
-docker-compose up -d
-```
+If you prefer Docker, the included `docker-compose.yml` spins up MySQL and Redis. Otherwise, provision the services manually and point the environment variables to them.
 
-3. Run the application:
+### Running locally
+
+Start the API with hot reload:
 ```bash
 npm run dev
 ```
@@ -101,19 +102,11 @@ Access the Swagger documentation at http://localhost:3000/api-docs
 
 ## Development
 
-Run the development server with hot reload:
-```bash
-npm run dev
-```
+### Testing
 
-Run the worker process:
+Run the Jest test suite:
 ```bash
-no need
-```
-
-Clear Redis cache:
-```bash
-no need
+npm test
 ```
 
 ## Docker Support

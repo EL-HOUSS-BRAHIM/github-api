@@ -3,15 +3,28 @@ const config = require('../config');
 const sequelize = require('../config/database');
 const { User, Repository, Activity } = require('../models');
 const githubService = require('../services/github');
-const redisClient = require('../config/redis'); // Add this import
+const redisClient = require('../config/redis');
+const { deleteKeysByPattern } = require('../utils/cache');
+
+const queueRedisOptions = {
+  host: config.redis.host,
+  port: config.redis.port,
+};
+
+if (config.redis.password) {
+  queueRedisOptions.password = config.redis.password;
+}
+
+if (process.env.REDIS_USERNAME) {
+  queueRedisOptions.username = process.env.REDIS_USERNAME;
+}
+
+if (config.redis.tls) {
+  queueRedisOptions.tls = config.redis.tls;
+}
 
 const harvesterQueue = new Queue('githubHarvester', {
-  redis: {
-    host: config.redis.host,
-    port: config.redis.port,
-    password: config.redis.password,
-    tls: {} // Enable TLS for Aiven Redis
-  },
+  redis: queueRedisOptions,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -95,7 +108,7 @@ harvesterQueue.process(5, async (job) => {
 
     // Clear cache after successful update
     await redisClient.del(`user:${username}:profile`);
-    await redisClient.del(`user:${username}:repos:*`);
+    await deleteKeysByPattern(`user:${username}:repos:*`);
 
     job.progress(100);
     return { success: true, username };
@@ -210,7 +223,7 @@ async function saveToDatabase(userData, repoData, activityData) {
 
     // Clear cache after successful update
     await redisClient.del(`user:${userData.username}:profile`);
-    await redisClient.del(`user:${userData.username}:repos:*`);
+    await deleteKeysByPattern(`user:${userData.username}:repos:*`);
 
   } catch (error) {
     if (transaction) await transaction.rollback();

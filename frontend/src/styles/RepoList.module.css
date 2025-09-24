@@ -25,6 +25,12 @@
     color: var(--text-secondary);
   }
 
+  .repo_stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
   .lang_dot {
     display: inline-block;
     width: 8px;
@@ -91,6 +97,17 @@
       gap: 0.5rem;
       color: var(--text-secondary);
       font-size: 0.875rem;
+    }
+
+    .repo_detail_link {
+      color: var(--primary);
+      text-decoration: none;
+      word-break: break-word;
+    }
+
+    .repo_detail_link:hover,
+    .repo_detail_link:focus {
+      text-decoration: underline;
     }
 
     .repo_dates {

@@ -2,6 +2,9 @@ import React from 'react';
 import styles from '../styles/UserProfileCard.module.css';
 
 function UserProfileCard({ user }) {
+  const social = user?.social || {};
+  const hasSocialLinks = Object.keys(social).length > 0 || Boolean(user?.website);
+
   return (
     <aside className={styles.github_profile}>
       <div className={styles.profile_avatar}>
@@ -38,15 +41,15 @@ function UserProfileCard({ user }) {
           <span className={styles.label}>Following</span>
         </div>
       </div>
-      {user.social && Object.keys(user.social).length > 0 && (
+      {hasSocialLinks && (
         <div className={styles.profile_social_media}>
-          {user.social.twitter && (
-            <a href={`https://twitter.com/${user.social.twitter}`} className={styles.social_link} target="_blank" rel="noopener noreferrer">
+          {social.twitter && (
+            <a href={`https://twitter.com/${social.twitter}`} className={styles.social_link} target="_blank" rel="noopener noreferrer">
               <i className="fab fa-twitter"></i>
             </a>
           )}
-          {user.social.linkedin && (
-            <a href={`https://linkedin.com/in/${user.social.linkedin}`} className={styles.social_link} target="_blank" rel="noopener noreferrer">
+          {social.linkedin && (
+            <a href={`https://linkedin.com/in/${social.linkedin}`} className={styles.social_link} target="_blank" rel="noopener noreferrer">
               <i className="fab fa-linkedin"></i>
             </a>
           )}

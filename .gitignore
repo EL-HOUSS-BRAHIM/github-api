@@ -4,6 +4,7 @@ package-lock.json
 yarn.lock
 ./node_modules/
 index.html
+!frontend/index.html
 script.js
 style.css
 IMG_20240703_152420.png

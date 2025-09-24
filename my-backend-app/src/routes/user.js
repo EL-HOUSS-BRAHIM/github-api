@@ -55,17 +55,33 @@ router.get('/:username/repos', userController.getUserRepos);
 
 // GET /api/user/:username/activity
 /**
- * Retrieves user's GitHub activity history
- * 
+ * Retrieves a GitHub user's recent activity with aggregate statistics
+ *
  * @param {string} username - GitHub username
  * @returns {Object} Activity data
  * {
  *   username: string,
- *   activities: [{
+ *   totals: {
+ *     commits: number,
+ *     pullRequests: number,
+ *     issuesOpened: number
+ *   },
+ *   totalContributions: number,
+ *   currentStreak: number,
+ *   longestStreak: number,
+ *   lastActivityDate: string | null,
+ *   daysTracked: number,
+ *   activeDays: number,
+ *   averages: {
+ *     perDay: number,
+ *     perActiveDay: number
+ *   },
+ *   dailyActivity: [{
  *     date: string (YYYY-MM-DD),
  *     commits: number,
- *     pull_requests: number,
- *     issues_opened: number
+ *     pullRequests: number,
+ *     issuesOpened: number,
+ *     total: number
  *   }]
  * }
  */
