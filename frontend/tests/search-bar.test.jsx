@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SearchBar from '../src/components/SearchBar.jsx';
 
@@ -12,6 +12,10 @@ vi.mock('react-router-dom', () => ({
 describe('SearchBar component', () => {
   beforeEach(() => {
     navigateMock.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('validates username input and guides submission flow', async () => {
@@ -56,3 +60,4 @@ describe('SearchBar component', () => {
     expect(alertMessage).toHaveTextContent('Enter a GitHub username to continue.');
   });
 });
+

@@ -22,6 +22,14 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
+  QUEUE_CLEANUP_MODE: z
+    .enum(['always', 'nonprod', 'never'])
+    .default('nonprod'),
+  QUEUE_CLEANUP_STATUSES: z.string().optional().default(''),
+  QUEUE_CLEANUP_GRACE_MS: z.coerce.number().int().nonnegative().default(600000),
+  RANKING_LOCK_TTL_MS: z.coerce.number().int().positive().default(3600000),
 });
 
 function parseEnv(source) {
@@ -41,6 +49,10 @@ function parseEnv(source) {
   if (parsed.GITHUB_TOKENS && githubTokens.length === 0) {
     console.warn('GITHUB_TOKENS is defined but no valid tokens were parsed.');
   }
+
+  const queueCleanupStatuses = parsed.QUEUE_CLEANUP_STATUSES
+    ? parsed.QUEUE_CLEANUP_STATUSES.split(',').map((status) => status.trim()).filter(Boolean)
+    : [];
 
   return {
     nodeEnv: parsed.NODE_ENV,
@@ -63,6 +75,18 @@ function parseEnv(source) {
       username: parsed.REDIS_USERNAME || undefined,
       password: parsed.REDIS_PASSWORD || undefined,
       tls: parsed.REDIS_TLS,
+    },
+    rateLimit: {
+      windowMs: parsed.RATE_LIMIT_WINDOW_MS,
+      maxRequests: parsed.RATE_LIMIT_MAX_REQUESTS,
+    },
+    startup: {
+      queueCleanupMode: parsed.QUEUE_CLEANUP_MODE,
+      queueCleanupStatuses,
+      queueCleanupGraceMs: parsed.QUEUE_CLEANUP_GRACE_MS,
+    },
+    scheduler: {
+      rankingUpdateLockTtlMs: parsed.RANKING_LOCK_TTL_MS,
     },
   };
 }
