@@ -38,7 +38,39 @@ function buildSSLConfig(sslSettings) {
   };
 }
 
-module.exports = {
+function validateProductionSecrets(envConfig) {
+  if (envConfig.nodeEnv !== 'production') {
+    return;
+  }
+
+  const missingSecrets = [];
+
+  if (!envConfig.db.password) {
+    missingSecrets.push('DB_PASSWORD');
+  }
+
+  if (!envConfig.redis.password) {
+    missingSecrets.push('REDIS_PASSWORD');
+  }
+
+  if (!envConfig.githubTokens.length) {
+    missingSecrets.push('GITHUB_TOKENS');
+  }
+
+  if (missingSecrets.length > 0) {
+    throw new Error(`Missing required production secrets: ${missingSecrets.join(', ')}`);
+  }
+}
+
+const queueCleanupStatuses = env.startup.queueCleanupStatuses.length > 0
+  ? env.startup.queueCleanupStatuses
+  : ['wait', 'delayed', 'active', 'completed', 'failed', 'stalled'];
+
+const shouldCleanupQueues = env.startup.queueCleanupMode === 'always'
+  || (env.startup.queueCleanupMode === 'nonprod' && env.nodeEnv !== 'production');
+
+const config = {
+  nodeEnv: env.nodeEnv,
   port: env.port,
   db: {
     host: env.db.host,
@@ -56,4 +88,22 @@ module.exports = {
     password: env.redis.password,
     tls: env.redis.tls ? {} : undefined,
   },
+  rateLimit: {
+    windowMs: env.rateLimit.windowMs,
+    maxRequests: env.rateLimit.maxRequests,
+  },
+  scheduler: {
+    rankingUpdateLockTtlMs: env.scheduler.rankingUpdateLockTtlMs,
+  },
+  startup: {
+    queueCleanup: {
+      enabled: shouldCleanupQueues,
+      graceMs: env.startup.queueCleanupGraceMs,
+      statuses: queueCleanupStatuses,
+    },
+  },
 };
+
+validateProductionSecrets(config);
+
+module.exports = config;

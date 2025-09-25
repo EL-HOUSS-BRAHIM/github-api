@@ -69,12 +69,24 @@ cp .env.example .env
 | `REDIS_USERNAME` | _(blank)_ | Optional username when Redis ACLs are enabled |
 | `REDIS_PASSWORD` | _(blank)_ | Redis password when authentication is required |
 | `REDIS_TLS` | `false` | Set to `true` to enable TLS connections to Redis |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Duration of the API rate limit window in milliseconds |
+| `RATE_LIMIT_MAX_REQUESTS` | `120` | Maximum number of requests allowed per IP per window |
+| `QUEUE_CLEANUP_MODE` | `nonprod` | `always`, `never`, or `nonprod` to control startup queue cleanups |
+| `QUEUE_CLEANUP_STATUSES` | _(blank)_ | Optional comma-separated Bull statuses to clean during startup |
+| `QUEUE_CLEANUP_GRACE_MS` | `600000` | Grace period (ms) applied to queue cleanups when enabled |
+| `RANKING_LOCK_TTL_MS` | `3600000` | TTL for the distributed scheduler lock ensuring single ranking updates |
 
 ### Installation
 
 Install dependencies:
 ```bash
 npm install
+```
+
+> **Note:** The backend now expects explicit database migrations. Run them before serving traffic:
+
+```bash
+npm run migrate
 ```
 
 If you prefer Docker, the included `docker-compose.yml` spins up MySQL and Redis. Otherwise, provision the services manually and point the environment variables to them.
@@ -85,6 +97,13 @@ Start the API with hot reload:
 ```bash
 npm run dev
 ```
+
+The development server automatically:
+
+- Runs any pending Sequelize migrations on boot.
+- Skips destructive queue cleanups unless `QUEUE_CLEANUP_MODE=always`.
+- Logs HTTP access details (suppressed in the test environment).
+- Enforces a shared rate limit of `RATE_LIMIT_MAX_REQUESTS` per `RATE_LIMIT_WINDOW_MS` for all `/api/*` routes.
 
 ## API Documentation
 
@@ -108,6 +127,39 @@ Run the Jest test suite:
 ```bash
 npm test
 ```
+
+### Database migrations
+
+The service relies on Sequelize migrations managed via [Umzug](https://github.com/sequelize/umzug). Useful commands:
+
+```bash
+# Apply pending migrations
+npm run migrate
+
+# View execution status
+npm run migrate:status
+
+# Revert the latest migration
+npm run migrate:down
+```
+
+Migrations run automatically during API startup, guaranteeing schema parity across environments without relying on `sequelize.sync({ alter: true })`.
+
+### Operational controls
+
+- **Queue hygiene:** Control Bull queue cleanup behaviour through `QUEUE_CLEANUP_MODE`. The default `nonprod` skips cleanup in production while keeping local/test environments tidy.
+- **Scheduler safety:** Ranking refreshes acquire a Redis-backed distributed lock (`RANKING_LOCK_TTL_MS`) so that only one instance processes each cron window.
+- **Secrets enforcement:** When `NODE_ENV=production`, the server refuses to start unless `DB_PASSWORD`, `REDIS_PASSWORD`, and at least one `GITHUB_TOKENS` entry are supplied.
+- **Observability & protection:** Lightweight in-process HTTP access logging and an IP-based rate limiter are enabled by default. Tune their thresholds with the environment variables above.
+
+### Deployment checklist
+
+1. Provision MySQL, Redis, and a secrets manager (or environment variable store) with the credentials referenced in `.env.example`.
+2. Seed the runtime environment with `DB_PASSWORD`, `REDIS_PASSWORD`, and rotated GitHub tokens. These are mandatory in production.
+3. Run database migrations (`npm run migrate`) as part of your deployment pipeline before starting new application instances.
+4. Ensure every instance can reach the shared Redis deployment—distributed locks depend on it for safe scheduling.
+5. Set `QUEUE_CLEANUP_MODE=never` (or leave as `nonprod`) in production to avoid wiping in-flight jobs during rolling deploys.
+6. Monitor application logs and 429 responses to fine-tune `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX_REQUESTS` for your workload.
 
 ## Docker Support
 

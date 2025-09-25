@@ -57,6 +57,9 @@ function SearchBar() {
   const statusId = status ? 'username-status' : undefined;
   const describedBy = [errorId, statusId].filter(Boolean).join(' ') || undefined;
 
+  const hasInput = username.length > 0;
+  const isLoading = Boolean(status);
+
   return (
     <form className={styles.search_form} onSubmit={handleSubmit} noValidate>
       <label htmlFor="usernameInput" className={styles.visually_hidden}>
@@ -78,7 +81,7 @@ function SearchBar() {
         <button
           id="searchButton"
           type="submit"
-          disabled={!username.trim()}
+          disabled={!hasInput || isLoading}
         >
           <i className="fas fa-search" aria-hidden="true"></i>
           <span className={styles.button_label}>Generate Report</span>

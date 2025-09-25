@@ -4,25 +4,37 @@ const config = require('./config');
 const sequelize = require('./config/database');
 const redisClient = require('./config/redis');
 const harvesterQueue = require('./queues/harvester');
+const { runPendingMigrations } = require('./database/runMigrations');
 
 const server = http.createServer(app);
 
 async function startServer() {
   try {
+    console.log('Testing database connectivity...');
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
+
+    await runPendingMigrations();
+
     console.log('Preparing harvester queue...');
     try {
       if (typeof harvesterQueue.isReady === 'function') {
         await harvesterQueue.isReady();
       }
 
-      const cleanupStatuses = ['wait', 'delayed', 'active', 'completed', 'failed', 'stalled'];
-      await Promise.all(cleanupStatuses.map(async (status) => {
-        try {
-          await harvesterQueue.clean(0, status);
-        } catch (cleanupError) {
-          console.warn(`Queue cleanup warning for status "${status}":`, cleanupError);
-        }
-      }));
+      if (config.startup.queueCleanup.enabled) {
+        const cleanupStatuses = config.startup.queueCleanup.statuses;
+        const grace = config.startup.queueCleanup.graceMs;
+        await Promise.all(cleanupStatuses.map(async (status) => {
+          try {
+            await harvesterQueue.clean(grace, status);
+          } catch (cleanupError) {
+            console.warn(`Queue cleanup warning for status "${status}":`, cleanupError);
+          }
+        }));
+      } else {
+        console.log('Startup queue cleanup skipped (disabled by configuration).');
+      }
 
       let repeatableJobs = [];
       try {
@@ -36,13 +48,6 @@ async function startServer() {
       console.warn('Queue preparation warning:', queueError);
       // Continue startup even if queue prep fails
     }
-
-    // Test database connection
-    await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-
-    // Sync models with alter option to safely update tables
-    await sequelize.sync({ alter: true });
 
     server.listen(config.port, () => {
       console.log(`Server listening on port ${config.port}`);
