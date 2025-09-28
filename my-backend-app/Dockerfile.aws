@@ -1,0 +1,57 @@
+# Multi-stage build for GitHub API
+FROM node:18-alpine AS base
+
+# Install dependencies needed for native modules
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Development stage
+FROM base AS development
+RUN npm ci --include=dev
+COPY . .
+CMD ["npm", "run", "dev"]
+
+# Production build stage
+FROM base AS builder
+COPY . .
+RUN npm run build 2>/dev/null || echo "No build script found"
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S github-api -u 1001
+
+# Install production dependencies
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application files
+COPY --from=builder --chown=github-api:nodejs /app/src ./src
+COPY --from=builder --chown=github-api:nodejs /app/config ./config
+COPY --from=builder --chown=github-api:nodejs /app/migrations ./migrations
+COPY --from=builder --chown=github-api:nodejs /app/scripts ./scripts
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node scripts/health-check.js || exit 1
+
+# Switch to non-root user
+USER github-api
+
+# Expose port
+EXPOSE 3000
+
+# Start application
+CMD ["npm", "start"]

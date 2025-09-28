@@ -1,0 +1,149 @@
+# Docker Compose for AWS-compatible local development
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: github-api-postgres
+    environment:
+      POSTGRES_DB: github_insights
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - github-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d github_insights"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Valkey/Redis Cache
+  valkey:
+    image: valkey/valkey:7-alpine
+    container_name: github-api-valkey
+    ports:
+      - "6379:6379"
+    command: >
+      valkey-server
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+    volumes:
+      - valkey_data:/data
+    networks:
+      - github-api-network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # GitHub API Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.aws
+      target: development
+    container_name: github-api-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: github_insights
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_TLS: false
+      # AWS configuration for local development
+      AWS_REGION: us-east-1
+      # Leave these empty for local development
+      AWS_DB_SECRET_NAME: ""
+      AWS_REDIS_SECRET_NAME: ""
+      AWS_GITHUB_SECRET_NAME: ""
+      AWS_SES_SECRET_NAME: ""
+      # GitHub tokens (add your tokens here)
+      GITHUB_TOKENS: ""
+      # Email notifications
+      ENABLE_EMAIL_NOTIFICATIONS: false
+      NOTIFICATION_EMAIL: ""
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./migrations:/app/migrations
+      - ./scripts:/app/scripts
+      - /app/node_modules
+    networks:
+      - github-api-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "scripts/health-check.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Worker Process
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.aws
+      target: development
+    container_name: github-api-worker
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: github_insights
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_TLS: false
+      # AWS configuration
+      AWS_REGION: us-east-1
+      AWS_DB_SECRET_NAME: ""
+      AWS_REDIS_SECRET_NAME: ""
+      AWS_GITHUB_SECRET_NAME: ""
+      AWS_SES_SECRET_NAME: ""
+      GITHUB_TOKENS: ""
+      ENABLE_EMAIL_NOTIFICATIONS: false
+    command: ["npm", "run", "worker"]
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./migrations:/app/migrations
+      - ./scripts:/app/scripts
+      - /app/node_modules
+    networks:
+      - github-api-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  valkey_data:
+    driver: local
+
+networks:
+  github-api-network:
+    driver: bridge

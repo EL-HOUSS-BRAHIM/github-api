@@ -1,51 +1,89 @@
 const path = require('path');
 const { Umzug, SequelizeStorage } = require('umzug');
-const sequelize = require('../config/database');
 
-const migrator = new Umzug({
-  migrations: {
-    glob: path.join(__dirname, '../../migrations/*.js'),
-  },
-  context: sequelize.getQueryInterface(),
-  storage: new SequelizeStorage({ sequelize }),
-  logger: console,
-});
+let migrator = null;
 
-async function runPendingMigrations() {
-  const pending = await migrator.pending();
-  if (pending.length === 0) {
-    console.log('No pending database migrations found.');
-    return;
+async function createMigrator() {
+  if (migrator) {
+    return migrator;
   }
 
-  console.log(`Applying ${pending.length} pending database migration(s)...`);
-  await migrator.up();
-  console.log('Database migrations completed.');
+  // Import sequelize after configuration is potentially initialized
+  const sequelize = require('../config/database');
+  
+  migrator = new Umzug({
+    migrations: {
+      glob: path.join(__dirname, '../../migrations/*.js'),
+    },
+    context: sequelize.getQueryInterface(),
+    storage: new SequelizeStorage({ sequelize }),
+    logger: console,
+  });
+
+  return migrator;
+}
+
+async function runPendingMigrations() {
+  console.log('Checking for pending migrations...');
+  
+  try {
+    const migratorInstance = await createMigrator();
+    const pending = await migratorInstance.pending();
+    
+    if (pending.length === 0) {
+      console.log('No pending migrations.');
+      return;
+    }
+
+    console.log(`Running ${pending.length} pending migrations...`);
+    const migrations = await migratorInstance.up();
+    console.log(`Successfully applied ${migrations.length} migrations:`);
+    migrations.forEach(migration => {
+      console.log(`  ✓ ${migration.name}`);
+    });
+  } catch (error) {
+    console.error('Migration failed:', error);
+    throw error;
+  }
 }
 
 async function showMigrationStatus() {
-  const [executed, pending] = await Promise.all([
-    migrator.executed(),
-    migrator.pending(),
-  ]);
+  console.log('Migration status:');
+  
+  try {
+    const migratorInstance = await createMigrator();
+    const executed = await migratorInstance.executed();
+    const pending = await migratorInstance.pending();
 
-  console.log('Executed migrations:');
-  executed.forEach((migration) => console.log(`  - ${migration.name}`));
+    console.log('\nExecuted migrations:');
+    if (executed.length === 0) {
+      console.log('  (none)');
+    } else {
+      executed.forEach(migration => {
+        console.log(`  ✓ ${migration.name}`);
+      });
+    }
 
-  if (executed.length === 0) {
-    console.log('  (none)');
-  }
-
-  console.log('Pending migrations:');
-  pending.forEach((migration) => console.log(`  - ${migration.name}`));
-
-  if (pending.length === 0) {
-    console.log('  (none)');
+    console.log('\nPending migrations:');
+    if (pending.length === 0) {
+      console.log('  (none)');
+    } else {
+      pending.forEach(migration => {
+        console.log(`  ○ ${migration.name}`);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to get migration status:', error);
+    throw error;
   }
 }
 
+async function getMigrator() {
+  return await createMigrator();
+}
+
 module.exports = {
-  migrator,
+  getMigrator,
   runPendingMigrations,
   showMigrationStatus,
 };

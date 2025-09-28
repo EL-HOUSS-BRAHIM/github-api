@@ -33,14 +33,22 @@ function buildConfig(overrides = {}) {
     database: overrides.database || env.db.name,
     host: env.db.host,
     port: env.db.port,
-    dialect: 'mysql',
+    dialect: 'postgres',
     logging: false,
     timezone: '+00:00',
     dialectOptions: {
-      ssl: resolveSSL(),
-      dateStrings: true,
-      typeCast: true,
-      flags: '-DATE_INVALID_DATES',
+      ssl: process.env.NODE_ENV === 'production' ? {
+        require: true,
+        rejectUnauthorized: false, // For AWS RDS
+      } : resolveSSL(),
+      // PostgreSQL specific settings
+      decimalNumbers: true,
+    },
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
     },
     ...overrides,
   };
@@ -48,6 +56,9 @@ function buildConfig(overrides = {}) {
 
 module.exports = {
   development: buildConfig(),
-  test: buildConfig({ database: process.env.DB_NAME || env.db.name }),
+  test: buildConfig({ 
+    database: process.env.DB_NAME_TEST || `${env.db.name}_test`,
+    logging: false,
+  }),
   production: buildConfig(),
 };
